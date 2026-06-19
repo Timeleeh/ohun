@@ -3,109 +3,108 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#3182f6" />
+<meta name="theme-color" content="#0d0e12" />
 <title>오행운 — 오늘의 그룹 운세</title>
 <style>
   :root{
-    --bg:#f2f4f6; --card:#fff; --ink:#191f28; --sub:#8b95a1;
-    --blue:#3182f6; --good:#12b886; --caution:#ff8c42; --line:#e5e8eb;
+    --bg:#0d0e12; --card:#181a20; --surf2:#23262e; --ink:#f4f5f7; --sub:#8d93a1;
+    --acc:#c6ff3d; --blue:#c6ff3d; --good:#34e3a0; --caution:#ff7a8a; --line:#2a2e38;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
   body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard",
     "Malgun Gothic",sans-serif; background:var(--bg); color:var(--ink);
-    max-width:480px; margin:0 auto; padding-bottom:96px}
-  header{padding:24px 20px 12px}
-  .date{font-size:14px; color:var(--sub); font-weight:600}
-  .theme{margin-top:6px; font-size:24px; font-weight:800; letter-spacing:-.5px}
-  .theme .el{color:var(--blue)}
-  .summary{margin:14px 20px 0; background:var(--card); border-radius:18px; padding:16px 18px;
-    font-size:15px; line-height:1.5; font-weight:600; box-shadow:0 2px 10px rgba(0,0,0,.04)}
-  .summary .tag{display:inline-block; font-size:12px; color:var(--blue); font-weight:700;
-    background:#e8f1ff; padding:3px 9px; border-radius:999px; margin-bottom:8px}
-  h2{font-size:13px; color:var(--sub); font-weight:700; margin:26px 20px 10px; letter-spacing:.2px}
+    max-width:480px; margin:0 auto; padding-bottom:100px}
+  header{padding:26px 20px 12px}
+  .date{font-size:13px; color:var(--sub); font-weight:700; letter-spacing:.3px; text-transform:uppercase}
+  .theme{margin-top:7px; font-size:27px; font-weight:900; letter-spacing:-.8px}
+  .theme .el{color:var(--acc)}
+  .summary{margin:14px 20px 0; background:var(--card); border-radius:20px; padding:17px 18px;
+    font-size:15px; line-height:1.5; font-weight:600; border:1px solid var(--line)}
+  .summary .tag{display:inline-block; font-size:11px; color:var(--acc); font-weight:800;
+    background:rgba(198,255,61,.12); padding:4px 10px; border-radius:999px; margin-bottom:9px; letter-spacing:.2px}
+  h2{font-size:12px; color:var(--sub); font-weight:800; margin:28px 20px 11px; letter-spacing:.4px; text-transform:uppercase}
   /* 인연 다이어그램 */
-  .diagram{background:var(--card); margin:0 20px; border-radius:22px; padding:8px;
-    box-shadow:0 2px 10px rgba(0,0,0,.04)}
+  .diagram{background:var(--card); margin:0 20px; border-radius:24px; padding:8px; border:1px solid var(--line)}
   svg{width:100%; height:auto; display:block; touch-action:manipulation}
-  .legend{display:flex; gap:16px; justify-content:center; padding:6px 0 12px; font-size:12px; color:var(--sub)}
+  .legend{display:flex; gap:16px; justify-content:center; padding:6px 0 12px; font-size:12px; color:var(--sub); font-weight:600}
   .legend i{display:inline-block; width:18px; height:3px; border-radius:2px; vertical-align:middle; margin-right:5px}
   .legend .g{background:var(--good)} .legend .c{background:var(--caution)}
   .hint{text-align:center; font-size:11.5px; color:var(--sub); padding-bottom:10px}
   .edge{stroke-width:2.5; transition:opacity .2s, stroke-width .2s}
   .edge.good{stroke:var(--good)} .edge.caution{stroke:var(--caution); stroke-dasharray:5 5}
   .node circle{transition:r .2s, stroke-width .2s}
-  .node text{font-size:13px; font-weight:800; fill:#fff; text-anchor:middle; dominant-baseline:central}
-  .node .el{font-size:10px; font-weight:700}
-  .dim{opacity:.12}
+  .node text{font-size:13px; font-weight:900; fill:#0d0e12; text-anchor:middle; dominant-baseline:central}
+  .node .el{font-size:10px; font-weight:800}
+  .dim{opacity:.14}
   /* 멤버 카드 */
-  .card{background:var(--card); margin:10px 20px 0; border-radius:18px; padding:16px 18px;
-    box-shadow:0 2px 10px rgba(0,0,0,.04); scroll-margin-top:12px; transition:box-shadow .2s, transform .2s}
-  .card.active{box-shadow:0 0 0 2px var(--blue), 0 6px 18px rgba(49,130,246,.18)}
+  .card{background:var(--card); margin:10px 20px 0; border-radius:20px; padding:16px 18px;
+    border:1px solid var(--line); scroll-margin-top:12px; transition:border-color .2s, box-shadow .2s, transform .2s}
+  .card.active{border-color:var(--acc); box-shadow:0 0 0 1px var(--acc), 0 0 24px rgba(198,255,61,.18)}
   .crow{display:flex; align-items:center; gap:10px}
-  .dot{width:34px; height:34px; border-radius:50%; display:grid; place-items:center;
-    color:#fff; font-weight:800; font-size:14px; flex:none}
-  .name{font-size:16px; font-weight:800}
-  .base{font-size:11.5px; color:var(--sub); font-weight:600; margin-top:1px}
-  .score{margin-left:auto; font-size:13px; font-weight:800; color:var(--blue)}
-  .line{margin-top:10px; font-size:14.5px; line-height:1.5; font-weight:600}
-  .chem{margin-top:10px; display:flex; flex-direction:column; gap:6px}
-  .chip{font-size:12.5px; line-height:1.45; padding:8px 11px; border-radius:12px; font-weight:600}
-  .chip.good{background:#e9faf3; color:#0c7a55}
-  .chip.caution{background:#fff2e8; color:#c4541a}
-  /* 공유 버튼 */
+  .dot{width:36px; height:36px; border-radius:50%; display:grid; place-items:center;
+    color:#0d0e12; font-weight:900; font-size:14px; flex:none}
+  .name{font-size:16px; font-weight:900}
+  .base{font-size:11.5px; color:var(--sub); font-weight:600; margin-top:2px}
+  .score{margin-left:auto; font-size:13px; font-weight:800; color:var(--acc)}
+  .line{margin-top:11px; font-size:14.5px; line-height:1.5; font-weight:600}
+  .chem{margin-top:11px; display:flex; flex-direction:column; gap:6px}
+  .chip{font-size:12.5px; line-height:1.45; padding:9px 12px; border-radius:13px; font-weight:600}
+  .chip.good{background:rgba(52,227,160,.12); color:#6ff0bd}
+  .chip.caution{background:rgba(255,122,138,.12); color:#ffa7b2}
   /* 상단 앱바 */
   .appbar{display:flex; align-items:center; gap:8px}
-  .gname{font-size:17px; font-weight:800; letter-spacing:-.3px}
-  .gswitch{font-size:12px; font-weight:700; color:var(--blue); background:#e8f1ff; border:none;
-    padding:6px 10px; border-radius:999px; cursor:pointer}
-  .me{margin-left:auto; width:34px; height:34px; border-radius:50%; background:#e5e8eb; border:none;
+  .gname{font-size:18px; font-weight:900; letter-spacing:-.4px}
+  .gswitch{font-size:12px; font-weight:800; color:var(--acc); background:rgba(198,255,61,.12); border:none;
+    padding:7px 11px; border-radius:999px; cursor:pointer}
+  .me{margin-left:auto; width:36px; height:36px; border-radius:50%; background:var(--surf2); border:1px solid var(--line);
     font-size:16px; cursor:pointer}
   /* 하단 액션 바 */
   .actionbar{position:fixed; left:50%; transform:translateX(-50%); bottom:14px;
     width:min(456px,calc(100% - 28px)); display:flex; gap:10px; z-index:20}
-  .btn{flex:1; border:none; border-radius:16px; padding:16px 10px; font-size:15.5px; font-weight:800; cursor:pointer}
+  .btn{flex:1; border:none; border-radius:16px; padding:17px 10px; font-size:15.5px; font-weight:900; cursor:pointer}
   .btn:active{transform:scale(.98)}
-  .btn.primary{background:var(--blue); color:#fff; box-shadow:0 8px 22px rgba(49,130,246,.35)}
-  .btn.invite{flex:0 0 42%; background:#fff; color:var(--blue); box-shadow:0 6px 18px rgba(0,0,0,.08)}
-  /* 초대 바텀시트 */
-  .scrim{position:fixed; inset:0; background:rgba(0,0,0,.4); opacity:0; pointer-events:none;
+  .btn.primary{background:var(--acc); color:#0d0e12; box-shadow:0 8px 26px rgba(198,255,61,.28)}
+  .btn.invite{flex:0 0 42%; background:var(--surf2); color:var(--ink); border:1px solid var(--line)}
+  /* 바텀시트 */
+  .scrim{position:fixed; inset:0; background:rgba(0,0,0,.6); opacity:0; pointer-events:none;
     transition:opacity .25s; z-index:30}
   .scrim.show{opacity:1; pointer-events:auto}
   .sheet{position:fixed; left:50%; transform:translateX(-50%) translateY(110%); bottom:0;
-    width:min(480px,100%); background:#fff; border-radius:22px 22px 0 0;
-    padding:22px 20px calc(22px + env(safe-area-inset-bottom));
+    width:min(480px,100%); background:var(--card); border-radius:24px 24px 0 0; border-top:1px solid var(--line);
+    padding:20px 20px calc(22px + env(safe-area-inset-bottom));
     transition:transform .3s cubic-bezier(.2,.8,.2,1); z-index:31}
   .sheet.show{transform:translateX(-50%) translateY(0)}
-  .grip{width:40px; height:4px; background:#e5e8eb; border-radius:2px; margin:0 auto 16px}
-  .sheet h3{margin:0 0 4px; font-size:18px; font-weight:800}
+  .grip{width:40px; height:4px; background:#3a3e48; border-radius:2px; margin:0 auto 16px}
+  .sheet h3{margin:0 0 4px; font-size:19px; font-weight:900}
   .sheet p{margin:0 0 16px; font-size:13.5px; color:var(--sub); font-weight:600; line-height:1.5}
-  .linkbox{display:flex; gap:8px; background:var(--bg); border-radius:12px; padding:6px 6px 6px 14px; align-items:center}
+  .linkbox{display:flex; gap:8px; background:var(--surf2); border-radius:13px; padding:6px 6px 6px 14px; align-items:center}
   .linkbox input{flex:1; border:none; background:transparent; font-size:13px; color:var(--ink); font-weight:600; outline:none}
-  .linkbox button{border:none; background:var(--blue); color:#fff; font-weight:800; border-radius:9px; padding:9px 13px; font-size:13px; cursor:pointer}
-  .sheet .kakao{margin-top:12px; width:100%; border:none; border-radius:14px; padding:15px;
-    font-size:15.5px; font-weight:800; background:#fee500; color:#191600; cursor:pointer}
-  .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:84px; background:#191f28;
-    color:#fff; padding:11px 18px; border-radius:12px; font-size:13.5px; font-weight:600;
+  .linkbox button{border:none; background:var(--acc); color:#0d0e12; font-weight:900; border-radius:10px; padding:10px 14px; font-size:13px; cursor:pointer}
+  .sheet .kakao{margin-top:12px; width:100%; border:none; border-radius:15px; padding:16px;
+    font-size:15.5px; font-weight:900; background:#fee500; color:#191600; cursor:pointer}
+  .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:88px; background:var(--ink);
+    color:#0d0e12; padding:12px 18px; border-radius:13px; font-size:13.5px; font-weight:800;
     opacity:0; transition:opacity .25s; pointer-events:none}
-  .toast.show{opacity:.95}
+  .toast.show{opacity:.97}
   footer{text-align:center; font-size:11px; color:var(--sub); padding:22px 20px 0}
   [hidden]{display:none !important}
   /* 그룹 만들기 화면 */
   #create{padding:0 0 40px}
-  .topnav{display:flex; align-items:center; gap:6px; padding:18px 16px 8px; font-size:17px; font-weight:800}
+  .topnav{display:flex; align-items:center; gap:6px; padding:20px 16px 8px; font-size:18px; font-weight:900}
   .back{border:none; background:none; font-size:30px; line-height:1; color:var(--ink); cursor:pointer; padding:0 6px 0 0}
   .form{padding:8px 20px}
-  .fl{display:block; font-size:13px; font-weight:700; color:var(--sub); margin:18px 0 7px}
-  .fi{width:100%; border:none; background:var(--card); border-radius:14px; padding:15px 16px;
-    font-size:16px; font-weight:600; color:var(--ink); box-shadow:0 2px 10px rgba(0,0,0,.04); outline:none}
-  .fi:focus{box-shadow:0 0 0 2px var(--blue)}
-  .fhint{font-size:12.5px; color:var(--sub); font-weight:600; line-height:1.55; margin:10px 2px 0}
-  .cap{margin:18px 0 6px; background:#e8f1ff; color:var(--blue); font-weight:700; font-size:13px;
-    text-align:center; padding:11px; border-radius:12px}
-  .btn.full{width:100%; margin-top:18px; box-shadow:0 8px 22px rgba(49,130,246,.35)}
-  .newgroup{background:#f2f4f6 !important; color:var(--ink) !important}
-  .glist .gitem{display:flex; align-items:center; gap:10px; padding:14px 4px; border-bottom:1px solid var(--line);
-    font-size:15px; font-weight:700; cursor:pointer}
+  .fl{display:block; font-size:12px; font-weight:800; color:var(--sub); margin:20px 0 8px; letter-spacing:.3px; text-transform:uppercase}
+  .fi{width:100%; border:1px solid var(--line); background:var(--card); border-radius:15px; padding:16px;
+    font-size:16px; font-weight:600; color:var(--ink); outline:none}
+  .fi:focus{border-color:var(--acc); box-shadow:0 0 0 1px var(--acc)}
+  .fhint{font-size:12.5px; color:var(--sub); font-weight:600; line-height:1.55; margin:11px 2px 0}
+  .fhint b{color:var(--acc); font-weight:800}
+  .cap{margin:20px 0 6px; background:rgba(198,255,61,.1); color:var(--acc); font-weight:800; font-size:13px;
+    text-align:center; padding:12px; border-radius:13px}
+  .btn.full{width:100%; margin-top:18px; box-shadow:0 8px 26px rgba(198,255,61,.28)}
+  .newgroup{background:var(--surf2) !important; color:var(--ink) !important}
+  .glist .gitem{display:flex; align-items:center; gap:10px; padding:15px 4px; border-bottom:1px solid var(--line);
+    font-size:15px; font-weight:800; cursor:pointer}
   .glist .gitem:last-child{border-bottom:none}
   .glist .gitem .mini{font-size:12px; color:var(--sub); font-weight:600; margin-left:auto}
 </style>
@@ -181,7 +180,7 @@
 
 <script>
 // ===== 샘플 데이터 (실제 서비스는 배치 생성 결과를 주입) =====
-const PALETTE = {목:"#12b886", 화:"#ff6b6b", 토:"#f59f00", 금:"#868e96", 수:"#4dabf7"};
+const PALETTE = {목:"#34e3a0", 화:"#ff7a8a", 토:"#ffc24b", 금:"#aab2c0", 수:"#54a0ff"};
 const DATA = {
   date:"2026년 6월 19일 (금)",
   dayElement:"木",
@@ -263,7 +262,7 @@ DATA.members.forEach(m=>{
   g.setAttribute("class","node"); g.dataset.id=m.id;
   g.style.cursor="pointer";
   g.innerHTML=`<circle cx="${p.x}" cy="${p.y}" r="22" fill="${PALETTE[m.el]}"
-      stroke="#fff" stroke-width="3"></circle>
+      stroke="#0d0e12" stroke-width="3"></circle>
     <text x="${p.x}" y="${p.y-3}">${m.name}</text>
     <text class="el" x="${p.x}" y="${p.y+10}">${({목:"木",화:"火",토:"土",금:"金",수:"水"})[m.el]}</text>`;
   g.addEventListener("click",()=>toggle(m.id));
