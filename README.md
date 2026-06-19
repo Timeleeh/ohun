@@ -71,6 +71,20 @@ python -m venv .venv
 - 운세는 `(group_id, date)` 단위 캐시: `daily_group_fortunes` + `daily_personal_fortunes` + `daily_bonds`
 - 그룹 최대 6명은 DB 트리거로도 강제
 
+### 실제 연결 방법
+1. [supabase.com](https://supabase.com)에서 프로젝트 생성
+2. SQL Editor에 `db/schema.sql` 전체를 붙여넣고 실행
+3. Project Settings → API 에서 **Project URL**과 **service_role key**를 복사해 `.env`에 설정
+   ```
+   SUPABASE_URL=https://xxxxx.supabase.co
+   SUPABASE_KEY=<service_role key>
+   ```
+4. 연결·스키마·CRUD 한 번에 검증:
+   ```bash
+   .venv/Scripts/python scripts/verify_supabase.py
+   ```
+   (LLM 호출 없이 DB 경로만 검증, 테스트 행은 자동 정리)
+
 ## 다음 단계 (미구현)
 
 - ~~Supabase 연동~~ ✅ (스키마 + SupabaseStore)
