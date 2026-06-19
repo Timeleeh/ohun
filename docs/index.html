@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#3182f6" />
+<title>오행운 — 오늘의 그룹 운세</title>
+<style>
+  :root{
+    --bg:#f2f4f6; --card:#fff; --ink:#191f28; --sub:#8b95a1;
+    --blue:#3182f6; --good:#12b886; --caution:#ff8c42; --line:#e5e8eb;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard",
+    "Malgun Gothic",sans-serif; background:var(--bg); color:var(--ink);
+    max-width:480px; margin:0 auto; padding-bottom:96px}
+  header{padding:24px 20px 12px}
+  .date{font-size:14px; color:var(--sub); font-weight:600}
+  .theme{margin-top:6px; font-size:24px; font-weight:800; letter-spacing:-.5px}
+  .theme .el{color:var(--blue)}
+  .summary{margin:14px 20px 0; background:var(--card); border-radius:18px; padding:16px 18px;
+    font-size:15px; line-height:1.5; font-weight:600; box-shadow:0 2px 10px rgba(0,0,0,.04)}
+  .summary .tag{display:inline-block; font-size:12px; color:var(--blue); font-weight:700;
+    background:#e8f1ff; padding:3px 9px; border-radius:999px; margin-bottom:8px}
+  h2{font-size:13px; color:var(--sub); font-weight:700; margin:26px 20px 10px; letter-spacing:.2px}
+  /* 인연 다이어그램 */
+  .diagram{background:var(--card); margin:0 20px; border-radius:22px; padding:8px;
+    box-shadow:0 2px 10px rgba(0,0,0,.04)}
+  svg{width:100%; height:auto; display:block; touch-action:manipulation}
+  .legend{display:flex; gap:16px; justify-content:center; padding:6px 0 12px; font-size:12px; color:var(--sub)}
+  .legend i{display:inline-block; width:18px; height:3px; border-radius:2px; vertical-align:middle; margin-right:5px}
+  .legend .g{background:var(--good)} .legend .c{background:var(--caution)}
+  .hint{text-align:center; font-size:11.5px; color:var(--sub); padding-bottom:10px}
+  .edge{stroke-width:2.5; transition:opacity .2s, stroke-width .2s}
+  .edge.good{stroke:var(--good)} .edge.caution{stroke:var(--caution); stroke-dasharray:5 5}
+  .node circle{transition:r .2s, stroke-width .2s}
+  .node text{font-size:13px; font-weight:800; fill:#fff; text-anchor:middle; dominant-baseline:central}
+  .node .el{font-size:10px; font-weight:700}
+  .dim{opacity:.12}
+  /* 멤버 카드 */
+  .card{background:var(--card); margin:10px 20px 0; border-radius:18px; padding:16px 18px;
+    box-shadow:0 2px 10px rgba(0,0,0,.04); scroll-margin-top:12px; transition:box-shadow .2s, transform .2s}
+  .card.active{box-shadow:0 0 0 2px var(--blue), 0 6px 18px rgba(49,130,246,.18)}
+  .crow{display:flex; align-items:center; gap:10px}
+  .dot{width:34px; height:34px; border-radius:50%; display:grid; place-items:center;
+    color:#fff; font-weight:800; font-size:14px; flex:none}
+  .name{font-size:16px; font-weight:800}
+  .base{font-size:11.5px; color:var(--sub); font-weight:600; margin-top:1px}
+  .score{margin-left:auto; font-size:13px; font-weight:800; color:var(--blue)}
+  .line{margin-top:10px; font-size:14.5px; line-height:1.5; font-weight:600}
+  .chem{margin-top:10px; display:flex; flex-direction:column; gap:6px}
+  .chip{font-size:12.5px; line-height:1.45; padding:8px 11px; border-radius:12px; font-weight:600}
+  .chip.good{background:#e9faf3; color:#0c7a55}
+  .chip.caution{background:#fff2e8; color:#c4541a}
+  /* 공유 버튼 */
+  .share{position:fixed; left:50%; transform:translateX(-50%); bottom:18px; width:min(440px,calc(100% - 40px));
+    background:var(--blue); color:#fff; border:none; border-radius:16px; padding:16px;
+    font-size:16px; font-weight:800; box-shadow:0 8px 22px rgba(49,130,246,.35); cursor:pointer}
+  .share:active{transform:translateX(-50%) scale(.98)}
+  .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:84px; background:#191f28;
+    color:#fff; padding:11px 18px; border-radius:12px; font-size:13.5px; font-weight:600;
+    opacity:0; transition:opacity .25s; pointer-events:none}
+  .toast.show{opacity:.95}
+  footer{text-align:center; font-size:11px; color:var(--sub); padding:22px 20px 0}
+</style>
+</head>
+<body>
+<header>
+  <div class="date" id="date"></div>
+  <div class="theme">오늘의 기운 · <span class="el" id="dayEl">木</span></div>
+</header>
+
+<div class="summary"><span class="tag">오늘의 그룹 한줄평</span><div id="groupComment"></div></div>
+
+<h2>인연 다이어그램 — 멤버를 탭해보세요</h2>
+<div class="diagram">
+  <svg id="svg" viewBox="0 0 320 300" aria-label="인연 다이어그램"></svg>
+  <div class="legend"><span><i class="g"></i>좋은 케미</span><span><i class="c"></i>주의 케미</span></div>
+  <div class="hint" id="hint">탭하면 그 사람의 인연선만 강조돼요</div>
+</div>
+
+<h2>멤버별 오늘의 운세</h2>
+<div id="cards"></div>
+
+<button class="share" onclick="share()">💬 카카오톡으로 공유하기</button>
+<div class="toast" id="toast">공유 카드가 단톡방으로 전송돼요 (목업)</div>
+<footer>오행운 · 인터랙티브 목업 · 샘플 데이터</footer>
+
+<script>
+// ===== 샘플 데이터 (실제 서비스는 배치 생성 결과를 주입) =====
+const PALETTE = {목:"#12b886", 화:"#ff6b6b", 토:"#f59f00", 금:"#868e96", 수:"#4dabf7"};
+const DATA = {
+  date:"2026년 6월 19일 (금)",
+  dayElement:"木",
+  groupComment:"다들 추진력은 넘치는데 방향이 제각각인 날, 회의는 짧게.",
+  members:[
+    {id:"jihoon", name:"지훈", el:"목", base:"木 기운 강함 (비화로 추진력↑)", score:4,
+     line:"지훈님, 오늘 머릿속 아이디어 일단 적어만 두세요"},
+    {id:"minjun", name:"민준", el:"화", base:"火 기운 과열 (목생화로 달아오름)", score:3,
+     line:"민준님, 열정 과다 주의보. 커피는 한 잔만."},
+    {id:"seoyeon", name:"서연", el:"금", base:"金 기운 강함 (금극목으로 충돌 가능)", score:5,
+     line:"서연님 직감 적중률 오늘 역대급, 믿고 가세요"},
+    {id:"haneul", name:"하늘", el:"수", base:"水 기운 충만 (수생목으로 흐름 좋음)", score:4,
+     line:"하늘님, 오늘은 한 발 물러서면 다 풀리는 날"},
+    {id:"doyun", name:"도윤", el:"토", base:"土 기운 안정 (목극토로 살짝 눌림)", score:3,
+     line:"도윤님, 무리한 약속 NO. 페이스 지키면 무난"},
+  ],
+  chemistry:[
+    {a:"jihoon", b:"minjun", type:"good", line:"지훈님 아이디어에 민준님 추진력 붙으면 오늘 일 하나 끝남"},
+    {a:"jihoon", b:"seoyeon", type:"caution", line:"지훈님 vs 서연님, 오늘 의견 다르면 일단 서연님 말부터"},
+    {a:"jihoon", b:"haneul", type:"good", line:"지훈님 들뜰 때 하늘님이 차분히 잡아주면 완벽"},
+    {a:"minjun", b:"haneul", type:"caution", line:"민준님 열정에 하늘님 찬물, 오늘은 서로 톤 조절"},
+    {a:"seoyeon", b:"doyun", type:"good", line:"서연님 판단에 도윤님 실행력, 오늘 합 최고"},
+    {a:"haneul", b:"doyun", type:"caution", line:"하늘님과 도윤님, 결정 미루다 둘 다 지칠 수 있어요"},
+  ],
+};
+
+// ===== 렌더링 =====
+const NS="http://www.w3.org/2000/svg";
+const nameById = Object.fromEntries(DATA.members.map(m=>[m.id,m.name]));
+let activeId = null;
+
+document.getElementById("date").textContent = DATA.date;
+document.getElementById("dayEl").textContent = DATA.dayElement;
+document.getElementById("groupComment").textContent = DATA.groupComment;
+
+// 멤버 카드
+const cards = document.getElementById("cards");
+DATA.members.forEach(m=>{
+  const rel = DATA.chemistry.filter(c=>c.a===m.id||c.b===m.id);
+  const chips = rel.map(c=>{
+    const other = nameById[c.a===m.id?c.b:c.a];
+    return `<div class="chip ${c.type}">${c.type==="good"?"💚":"⚠️"} ${c.line}</div>`;
+  }).join("");
+  const stars = "★".repeat(m.score)+"☆".repeat(5-m.score);
+  cards.insertAdjacentHTML("beforeend", `
+    <div class="card" id="card-${m.id}">
+      <div class="crow">
+        <div class="dot" style="background:${PALETTE[m.el]}">${m.name[0]}</div>
+        <div><div class="name">${m.name}</div><div class="base">${m.base}</div></div>
+        <div class="score">${stars}</div>
+      </div>
+      <div class="line">${m.line}</div>
+      <div class="chem">${chips}</div>
+    </div>`);
+});
+
+// 인연 다이어그램 (원형 배치)
+const svg = document.getElementById("svg");
+const cx=160, cy=150, R=105;
+const pos = {};
+DATA.members.forEach((m,i)=>{
+  const ang = -Math.PI/2 + i*2*Math.PI/DATA.members.length;
+  pos[m.id] = {x:cx+R*Math.cos(ang), y:cy+R*Math.sin(ang), el:m.el, name:m.name};
+});
+// 엣지 먼저(노드 아래 깔리게)
+DATA.chemistry.forEach(c=>{
+  const p=pos[c.a], q=pos[c.b];
+  const ln=document.createElementNS(NS,"line");
+  ln.setAttribute("x1",p.x); ln.setAttribute("y1",p.y);
+  ln.setAttribute("x2",q.x); ln.setAttribute("y2",q.y);
+  ln.setAttribute("class",`edge ${c.type}`);
+  ln.dataset.a=c.a; ln.dataset.b=c.b;
+  svg.appendChild(ln);
+});
+// 노드
+DATA.members.forEach(m=>{
+  const p=pos[m.id];
+  const g=document.createElementNS(NS,"g");
+  g.setAttribute("class","node"); g.dataset.id=m.id;
+  g.style.cursor="pointer";
+  g.innerHTML=`<circle cx="${p.x}" cy="${p.y}" r="22" fill="${PALETTE[m.el]}"
+      stroke="#fff" stroke-width="3"></circle>
+    <text x="${p.x}" y="${p.y-3}">${m.name}</text>
+    <text class="el" x="${p.x}" y="${p.y+10}">${({목:"木",화:"火",토:"土",금:"金",수:"水"})[m.el]}</text>`;
+  g.addEventListener("click",()=>toggle(m.id));
+  svg.appendChild(g);
+});
+
+function toggle(id){
+  activeId = (activeId===id)?null:id;
+  const edges=[...svg.querySelectorAll(".edge")];
+  const nodes=[...svg.querySelectorAll(".node")];
+  if(activeId===null){
+    edges.forEach(e=>e.classList.remove("dim"));
+    nodes.forEach(n=>n.classList.remove("dim"));
+    document.querySelectorAll(".card").forEach(c=>c.classList.remove("active"));
+    document.getElementById("hint").textContent="탭하면 그 사람의 인연선만 강조돼요";
+    return;
+  }
+  const connected=new Set([id]);
+  edges.forEach(e=>{
+    const on = e.dataset.a===id||e.dataset.b===id;
+    e.classList.toggle("dim", !on);
+    if(on){ connected.add(e.dataset.a); connected.add(e.dataset.b); }
+  });
+  nodes.forEach(n=>n.classList.toggle("dim", !connected.has(n.dataset.id)));
+  document.querySelectorAll(".card").forEach(c=>c.classList.remove("active"));
+  const card=document.getElementById("card-"+id);
+  card.classList.add("active");
+  card.scrollIntoView({behavior:"smooth", block:"center"});
+  document.getElementById("hint").textContent=`${nameById[id]}님의 인연선만 강조 중 · 다시 탭하면 해제`;
+}
+
+let toastTimer;
+function share(){
+  const t=document.getElementById("toast");
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove("show"),1800);
+}
+</script>
+</body>
+</html>
