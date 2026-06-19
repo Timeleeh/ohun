@@ -53,10 +53,37 @@
   .chip.good{background:#e9faf3; color:#0c7a55}
   .chip.caution{background:#fff2e8; color:#c4541a}
   /* 공유 버튼 */
-  .share{position:fixed; left:50%; transform:translateX(-50%); bottom:18px; width:min(440px,calc(100% - 40px));
-    background:var(--blue); color:#fff; border:none; border-radius:16px; padding:16px;
-    font-size:16px; font-weight:800; box-shadow:0 8px 22px rgba(49,130,246,.35); cursor:pointer}
-  .share:active{transform:translateX(-50%) scale(.98)}
+  /* 상단 앱바 */
+  .appbar{display:flex; align-items:center; gap:8px}
+  .gname{font-size:17px; font-weight:800; letter-spacing:-.3px}
+  .gswitch{font-size:12px; font-weight:700; color:var(--blue); background:#e8f1ff; border:none;
+    padding:6px 10px; border-radius:999px; cursor:pointer}
+  .me{margin-left:auto; width:34px; height:34px; border-radius:50%; background:#e5e8eb; border:none;
+    font-size:16px; cursor:pointer}
+  /* 하단 액션 바 */
+  .actionbar{position:fixed; left:50%; transform:translateX(-50%); bottom:14px;
+    width:min(456px,calc(100% - 28px)); display:flex; gap:10px; z-index:20}
+  .btn{flex:1; border:none; border-radius:16px; padding:16px 10px; font-size:15.5px; font-weight:800; cursor:pointer}
+  .btn:active{transform:scale(.98)}
+  .btn.primary{background:var(--blue); color:#fff; box-shadow:0 8px 22px rgba(49,130,246,.35)}
+  .btn.invite{flex:0 0 42%; background:#fff; color:var(--blue); box-shadow:0 6px 18px rgba(0,0,0,.08)}
+  /* 초대 바텀시트 */
+  .scrim{position:fixed; inset:0; background:rgba(0,0,0,.4); opacity:0; pointer-events:none;
+    transition:opacity .25s; z-index:30}
+  .scrim.show{opacity:1; pointer-events:auto}
+  .sheet{position:fixed; left:50%; transform:translateX(-50%) translateY(110%); bottom:0;
+    width:min(480px,100%); background:#fff; border-radius:22px 22px 0 0;
+    padding:22px 20px calc(22px + env(safe-area-inset-bottom));
+    transition:transform .3s cubic-bezier(.2,.8,.2,1); z-index:31}
+  .sheet.show{transform:translateX(-50%) translateY(0)}
+  .grip{width:40px; height:4px; background:#e5e8eb; border-radius:2px; margin:0 auto 16px}
+  .sheet h3{margin:0 0 4px; font-size:18px; font-weight:800}
+  .sheet p{margin:0 0 16px; font-size:13.5px; color:var(--sub); font-weight:600; line-height:1.5}
+  .linkbox{display:flex; gap:8px; background:var(--bg); border-radius:12px; padding:6px 6px 6px 14px; align-items:center}
+  .linkbox input{flex:1; border:none; background:transparent; font-size:13px; color:var(--ink); font-weight:600; outline:none}
+  .linkbox button{border:none; background:var(--blue); color:#fff; font-weight:800; border-radius:9px; padding:9px 13px; font-size:13px; cursor:pointer}
+  .sheet .kakao{margin-top:12px; width:100%; border:none; border-radius:14px; padding:15px;
+    font-size:15.5px; font-weight:800; background:#fee500; color:#191600; cursor:pointer}
   .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:84px; background:#191f28;
     color:#fff; padding:11px 18px; border-radius:12px; font-size:13.5px; font-weight:600;
     opacity:0; transition:opacity .25s; pointer-events:none}
@@ -66,7 +93,12 @@
 </head>
 <body>
 <header>
-  <div class="date" id="date"></div>
+  <div class="appbar">
+    <span class="gname" id="gname">우리팀 단톡방</span>
+    <button class="gswitch" onclick="switchGroup()">그룹 전환 ▾</button>
+    <button class="me" onclick="toastMsg('내 정보 화면 (목업)')" aria-label="내 정보">🙂</button>
+  </div>
+  <div class="date" id="date" style="margin-top:14px"></div>
   <div class="theme">오늘의 기운 · <span class="el" id="dayEl">木</span></div>
 </header>
 
@@ -82,7 +114,23 @@
 <h2>멤버별 오늘의 운세</h2>
 <div id="cards"></div>
 
-<button class="share" onclick="share()">💬 카카오톡으로 공유하기</button>
+<div class="actionbar">
+  <button class="btn invite" onclick="openInvite()">🔗 지인 초대</button>
+  <button class="btn primary" onclick="share()">💬 카톡 공유</button>
+</div>
+
+<div class="scrim" id="scrim" onclick="closeInvite()"></div>
+<aside class="sheet" id="sheet" role="dialog" aria-label="지인 초대하기">
+  <div class="grip"></div>
+  <h3>지인 초대하기</h3>
+  <p>이 링크로 들어온 친구는 생년월일만 입력하면 바로 이 그룹에 합류해요. (최대 6명)</p>
+  <div class="linkbox">
+    <input id="invlink" readonly value="https://ohun.app/invite/ABCD-1234" />
+    <button onclick="copyLink()">복사</button>
+  </div>
+  <button class="kakao" onclick="toastMsg('카카오톡 초대 공유 (목업)'); closeInvite()">카카오톡으로 초대하기</button>
+</aside>
+
 <div class="toast" id="toast">공유 카드가 단톡방으로 전송돼요 (목업)</div>
 <footer>오행운 · 인터랙티브 목업 · 샘플 데이터</footer>
 
@@ -203,11 +251,29 @@ function toggle(id){
 }
 
 let toastTimer;
-function share(){
+function toastMsg(msg){
   const t=document.getElementById("toast");
-  t.classList.add("show");
+  t.textContent=msg; t.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>t.classList.remove("show"),1800);
+}
+function share(){ toastMsg("공유 카드가 단톡방으로 전송돼요 (목업)"); }
+
+function openInvite(){ document.getElementById("scrim").classList.add("show");
+  document.getElementById("sheet").classList.add("show"); }
+function closeInvite(){ document.getElementById("scrim").classList.remove("show");
+  document.getElementById("sheet").classList.remove("show"); }
+function copyLink(){
+  const inp=document.getElementById("invlink"); inp.select();
+  if(navigator.clipboard){ navigator.clipboard.writeText(inp.value).catch(()=>{}); }
+  toastMsg("초대 링크가 복사됐어요");
+}
+
+const GROUPS=["우리팀 단톡방","대학 동기방","가족방"]; let gi=0;
+function switchGroup(){
+  gi=(gi+1)%GROUPS.length;
+  document.getElementById("gname").textContent=GROUPS[gi];
+  toastMsg("그룹 전환: "+GROUPS[gi]);
 }
 </script>
 </body>
