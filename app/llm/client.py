@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 
 from ..config import settings
-from .prompts import SYSTEM_PROMPT, FEWSHOT_USER, FEWSHOT_TOOL_INPUT
+from .prompts import SYSTEM_PROMPT, SYSTEM_PROMPT_GEMINI, FEWSHOT_USER, FEWSHOT_TOOL_INPUT
 from .schema import EMIT_FORTUNES_TOOL, EMIT_TOOL_NAME
 
 
@@ -46,17 +46,25 @@ class ClaudeClient:
         self.model = model or settings.model
         self.temperature = settings.temperature if temperature is None else temperature
 
+    def _accepts_temperature(self) -> bool:
+        # opus 4.7+ / fable / mythos는 sampling 파라미터(temperature 등)를 400으로 거부.
+        # sonnet/haiku 계열만 temperature 허용.
+        m = self.model.lower()
+        return not any(k in m for k in ("opus-4-7", "opus-4-8", "fable", "mythos"))
+
     def generate(self, user_prompt: str) -> dict:
         """user_prompt -> emit_fortunes 도구 입력(dict)."""
-        resp = self.client.messages.create(
+        kwargs = dict(
             model=self.model,
             max_tokens=2048,
-            temperature=self.temperature,
             system=SYSTEM_PROMPT,
             tools=[EMIT_FORTUNES_TOOL],
             tool_choice={"type": "tool", "name": EMIT_TOOL_NAME},  # JSON 강제
             messages=_fewshot_messages() + [{"role": "user", "content": user_prompt}],
         )
+        if self._accepts_temperature():
+            kwargs["temperature"] = self.temperature
+        resp = self.client.messages.create(**kwargs)
         for block in resp.content:
             if block.type == "tool_use" and block.name == EMIT_TOOL_NAME:
                 return block.input
@@ -104,8 +112,43 @@ def _parse_prompt(text: str):
     return members, pairs
 
 
+class GeminiClient:
+    """Google Gemini 백엔드. tool use 대신 JSON 강제(response_mime_type)로 구조 보장."""
+
+    def __init__(self, api_key: str | None = None, model: str | None = None,
+                 temperature: float | None = None):
+        from google import genai
+
+        self.client = genai.Client(api_key=api_key or settings.gemini_api_key)
+        self.model = model or settings.gemini_model
+        self.temperature = settings.temperature if temperature is None else temperature
+
+    def generate(self, user_prompt: str) -> dict:
+        from google.genai import types
+
+        # few-shot(예시 입력→기대 JSON)을 user/model 턴으로 고정
+        contents = [
+            {"role": "user", "parts": [{"text": FEWSHOT_USER}]},
+            {"role": "model", "parts": [{"text": json.dumps(FEWSHOT_TOOL_INPUT, ensure_ascii=False)}]},
+            {"role": "user", "parts": [{"text": user_prompt}]},
+        ]
+        resp = self.client.models.generate_content(
+            model=self.model,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT_GEMINI,
+                temperature=self.temperature,
+                response_mime_type="application/json",  # JSON 강제
+            ),
+        )
+        return json.loads(resp.text)
+
+
 def get_client():
-    """키 있으면 실제 Claude, 없으면 Mock."""
-    if settings.anthropic_api_key:
+    """provider 설정/보유 키에 따라 백엔드 선택. 기본 auto: gemini → anthropic → mock."""
+    p = settings.provider
+    if p == "gemini" or (p == "auto" and settings.gemini_api_key):
+        return GeminiClient()
+    if p == "anthropic" or (p == "auto" and settings.anthropic_api_key):
         return ClaudeClient()
     return MockClient()
