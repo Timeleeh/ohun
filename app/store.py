@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import date, time
 from dataclasses import dataclass, field
 
-from .models import GroupFortune, Member
+from .models import GroupFortune, Member, PersonalFortune, Chemistry
 
 
 @dataclass
