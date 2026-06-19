@@ -105,10 +105,16 @@ def test_scheduler_dedup_and_due():
 
 
 def test_get_store_defaults_inmemory():
-    # supabase 크리덴셜 없으면 인메모리 싱글톤 반환
-    from app.store import get_store, store as default_store, InMemoryStore
-    s = get_store()
-    assert isinstance(s, InMemoryStore) and s is default_store
+    # supabase 크리덴셜 없을 때 인메모리 싱글톤 반환 (ambient .env와 무관하게 검증)
+    from app import store as store_mod
+    from app.config import settings
+    saved = (settings.supabase_url, settings.supabase_key)
+    settings.supabase_url, settings.supabase_key = "", ""
+    try:
+        s = store_mod.get_store()
+        assert isinstance(s, store_mod.InMemoryStore) and s is store_mod.store
+    finally:
+        settings.supabase_url, settings.supabase_key = saved
 
 
 def test_scheduler_skips_inactive():

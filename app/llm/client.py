@@ -124,7 +124,8 @@ class GeminiClient:
         self.temperature = settings.temperature if temperature is None else temperature
 
     def generate(self, user_prompt: str) -> dict:
-        from google.genai import types
+        import time
+        from google.genai import types, errors
 
         # few-shot(예시 입력→기대 JSON)을 user/model 턴으로 고정
         contents = [
@@ -132,16 +133,26 @@ class GeminiClient:
             {"role": "model", "parts": [{"text": json.dumps(FEWSHOT_TOOL_INPUT, ensure_ascii=False)}]},
             {"role": "user", "parts": [{"text": user_prompt}]},
         ]
-        resp = self.client.models.generate_content(
-            model=self.model,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT_GEMINI,
-                temperature=self.temperature,
-                response_mime_type="application/json",  # JSON 강제
-            ),
+        cfg = types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT_GEMINI,
+            temperature=self.temperature,
+            response_mime_type="application/json",  # JSON 강제
         )
-        return json.loads(resp.text)
+        # 503(과부하)·429(레이트리밋) 등 일시적 오류는 지수 백오프로 재시도
+        last = None
+        for attempt in range(4):
+            try:
+                resp = self.client.models.generate_content(
+                    model=self.model, contents=contents, config=cfg)
+                return json.loads(resp.text)
+            except (errors.ServerError, errors.ClientError) as e:
+                code = getattr(e, "code", None)
+                if code in (429, 500, 503) and attempt < 3:
+                    last = e
+                    time.sleep(2 * (attempt + 1))
+                    continue
+                raise
+        raise last
 
 
 def get_client():

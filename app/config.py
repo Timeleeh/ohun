@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     # provider: auto | gemini | anthropic | mock (auto = 가진 키 우선순위로 자동 선택)
     provider: str = "auto"
     model: str = "claude-sonnet-4-6"          # Anthropic 모델
-    gemini_model: str = "gemini-2.0-flash"    # Gemini 모델
+    gemini_model: str = "gemini-2.5-flash"    # Gemini 모델 (무료 티어 쿼터 있는 모델)
     temperature: float = 0.95
     max_group_size: int = 6
     max_pairs: int = 6
