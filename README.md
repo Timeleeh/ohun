@@ -57,9 +57,24 @@ python -m venv .venv
 
 `.env`는 `.env.example` 참고.
 
+## LLM provider (멀티)
+
+`OHN_PROVIDER`(auto|gemini|anthropic|mock)로 선택. `auto`는 가진 키 우선순위(gemini→anthropic→mock).
+- Anthropic: `ANTHROPIC_API_KEY` (tool use로 JSON 강제)
+- Gemini: `GEMINI_API_KEY`/`GOOGLE_API_KEY` (`response_mime_type=application/json`로 JSON 강제)
+- 키 없으면 `MockClient`로 파이프라인 동작
+
+## Supabase 연동
+
+- 스키마: `db/schema.sql` (Supabase SQL Editor에 붙여넣어 실행)
+- `SUPABASE_URL` + `SUPABASE_KEY` 설정 시 `get_store()`가 `SupabaseStore` 사용, 없으면 인메모리
+- 운세는 `(group_id, date)` 단위 캐시: `daily_group_fortunes` + `daily_personal_fortunes` + `daily_bonds`
+- 그룹 최대 6명은 DB 트리거로도 강제
+
 ## 다음 단계 (미구현)
 
-- Supabase 연동(`store.py` 인터페이스 구현체 교체)
+- ~~Supabase 연동~~ ✅ (스키마 + SupabaseStore)
+- 실제 LLM 출력 품질 확인 (Gemini/Anthropic 키 + 크레딧)
 - 토스 미니앱 인증/사용자정보 연동 어댑터
 - 카카오 공유 카드 이미지 렌더링(SSR) + 토스 웹뷰 PoC
-- 프론트엔드(인연 다이어그램)
+- 프론트엔드(인연 다이어그램)는 `docs/index.html` 목업 → 실제 앱 연결

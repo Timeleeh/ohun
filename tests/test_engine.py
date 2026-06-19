@@ -104,6 +104,13 @@ def test_scheduler_dedup_and_due():
     assert len(due2) == 0
 
 
+def test_get_store_defaults_inmemory():
+    # supabase 크리덴셜 없으면 인메모리 싱글톤 반환
+    from app.store import get_store, store as default_store, InMemoryStore
+    s = get_store()
+    assert isinstance(s, InMemoryStore) and s is default_store
+
+
 def test_scheduler_skips_inactive():
     store = InMemoryStore()
     members = [Member(id="a", name="A", birth_date=date(1990, 1, 1))]

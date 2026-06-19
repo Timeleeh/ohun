@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     max_group_size: int = 6
     max_pairs: int = 6
 
+    # Supabase (없으면 인메모리 store 사용)
+    supabase_url: str = ""
+    supabase_key: str = ""
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         import os
@@ -28,6 +32,10 @@ class Settings(BaseSettings):
             self.anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
         if not self.gemini_api_key:
             self.gemini_api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY", "")
+        if not self.supabase_url:
+            self.supabase_url = os.environ.get("SUPABASE_URL", "")
+        if not self.supabase_key:
+            self.supabase_key = os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_SERVICE_KEY", "")
 
 
 settings = Settings()

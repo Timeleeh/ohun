@@ -49,4 +49,90 @@ class InMemoryStore(Store):
         self._cache[(gf.group_id, gf.date.isoformat())] = gf
 
 
+class SupabaseStore(Store):
+    """Supabase(PostgreSQL) 백엔드. 스키마는 db/schema.sql 참고.
+
+    운세는 (group_id, date) 단위로 3개 테이블에 저장/조회한다:
+    daily_group_fortunes(헤더) + daily_personal_fortunes + daily_bonds.
+    """
+
+    def __init__(self, url: str | None = None, key: str | None = None):
+        from supabase import create_client
+        from .config import settings
+        self.sb = create_client(url or settings.supabase_url, key or settings.supabase_key)
+
+    # --- 그룹 ---
+    def _build_group(self, g: dict) -> Group:
+        rows = (self.sb.table("group_members")
+                .select("user_id, users(id,name,birth_date)")
+                .eq("group_id", g["id"]).execute().data or [])
+        members = []
+        for r in rows:
+            u = r.get("users") or {}
+            if u:
+                members.append(Member(id=u["id"], name=u["name"],
+                                      birth_date=date.fromisoformat(u["birth_date"])))
+        return Group(
+            id=g["id"], name=g["name"], members=members,
+            gen_time=time.fromisoformat(g.get("gen_time") or "08:00:00"),
+            last_active=date.fromisoformat(g["last_active"]) if g.get("last_active") else None,
+        )
+
+    def get_group(self, group_id: str) -> Group | None:
+        res = self.sb.table("groups").select("*").eq("id", group_id).limit(1).execute().data
+        return self._build_group(res[0]) if res else None
+
+    def list_groups(self) -> list[Group]:
+        res = self.sb.table("groups").select("*").execute().data or []
+        return [self._build_group(g) for g in res]
+
+    # --- 운세 캐시 ---
+    def get_fortune(self, group_id: str, d: date) -> GroupFortune | None:
+        ds = d.isoformat()
+        hdr = (self.sb.table("daily_group_fortunes").select("*")
+               .eq("group_id", group_id).eq("date", ds).limit(1).execute().data)
+        if not hdr:
+            return None
+        h = hdr[0]
+        pf = (self.sb.table("daily_personal_fortunes").select("*")
+              .eq("group_id", group_id).eq("date", ds).execute().data or [])
+        bonds = (self.sb.table("daily_bonds").select("*")
+                 .eq("group_id", group_id).eq("date", ds).execute().data or [])
+        return GroupFortune(
+            group_id=group_id, date=d, day_element=h["day_element"],
+            group_comment=h["group_comment"],
+            personal_fortunes=[PersonalFortune(
+                member_id=r["member_id"], line=r["line"], score=r["score"],
+                base_element=r["base_element"]) for r in pf],
+            chemistry=[Chemistry(pair_id=r["pair_id"], a_id=r["user_a_id"], b_id=r["user_b_id"],
+                                 type=r["type"], line=r["line"]) for r in bonds],
+        )
+
+    def save_fortune(self, gf: GroupFortune) -> None:
+        ds = gf.date.isoformat()
+        self.sb.table("daily_group_fortunes").upsert({
+            "group_id": gf.group_id, "date": ds,
+            "day_element": gf.day_element, "group_comment": gf.group_comment,
+        }).execute()
+        if gf.personal_fortunes:
+            self.sb.table("daily_personal_fortunes").upsert([{
+                "group_id": gf.group_id, "date": ds, "member_id": p.member_id,
+                "line": p.line, "score": p.score, "base_element": p.base_element,
+            } for p in gf.personal_fortunes]).execute()
+        if gf.chemistry:
+            self.sb.table("daily_bonds").upsert([{
+                "group_id": gf.group_id, "date": ds, "pair_id": c.pair_id,
+                "user_a_id": c.a_id, "user_b_id": c.b_id, "type": c.type, "line": c.line,
+            } for c in gf.chemistry]).execute()
+
+
+# 기본 인메모리 싱글톤(개발/테스트). 운영은 Supabase.
 store = InMemoryStore()
+
+
+def get_store() -> Store:
+    """Supabase 크리덴셜 있으면 SupabaseStore, 없으면 인메모리 store."""
+    from .config import settings
+    if settings.supabase_url and settings.supabase_key:
+        return SupabaseStore()
+    return store

@@ -7,13 +7,14 @@ from fastapi import FastAPI, HTTPException
 
 from .config import settings
 from .models import GenerateRequest, GroupFortune
-from .store import store, Group
+from .store import get_store
 from .scheduler import BatchConfig, tick
 from . import fortune
 
 KST = timezone(timedelta(hours=9))
 app = FastAPI(title="오행운 API", version="0.1.0")
 _cfg = BatchConfig()
+store = get_store()  # Supabase 크리덴셜 있으면 Supabase, 없으면 인메모리
 
 
 def _today_kst() -> date:
