@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_key: str = ""
 
+    # 토스 로그인(앱인토스). 미설정 시 MockAuth 사용
+    toss_client_id: str = ""
+    toss_cert_path: str = ""        # mTLS 클라이언트 인증서(.pem)
+    toss_key_path: str = ""         # mTLS 개인키(.pem)
+    toss_decrypt_key: str = ""      # PII 복호화 키(base64, 콘솔 발급)
+    toss_referrer: str = "DEFAULT"  # DEFAULT | SANDBOX
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         import os

@@ -26,15 +26,51 @@ class Store:
     def list_groups(self) -> list[Group]: ...
     def get_fortune(self, group_id: str, d: date) -> GroupFortune | None: ...
     def save_fortune(self, gf: GroupFortune) -> None: ...
+    # 온보딩(FR-01/02/03)
+    def upsert_user(self, toss_user_id: str, name: str, birth_date: date,
+                    birth_time=None) -> Member: ...
+    def get_group_by_invite_code(self, code: str) -> Group | None: ...
+    def create_group(self, name: str, owner_id: str, invite_code: str,
+                     gen_time: time = time(8, 0)) -> Group: ...
+    def add_member(self, group_id: str, user_id: str) -> None: ...
 
 
 @dataclass
 class InMemoryStore(Store):
     groups: dict[str, Group] = field(default_factory=dict)
+    users: dict[str, Member] = field(default_factory=dict)  # id == toss_user_id(개발 단순화)
     _cache: dict[tuple[str, str], GroupFortune] = field(default_factory=dict)
 
     def upsert_group(self, g: Group) -> None:
         self.groups[g.id] = g
+
+    # --- 온보딩 ---
+    def upsert_user(self, toss_user_id, name, birth_date, birth_time=None) -> Member:
+        m = Member(id=toss_user_id, name=name, birth_date=birth_date)
+        self.users[toss_user_id] = m
+        return m
+
+    def get_group_by_invite_code(self, code: str) -> Group | None:
+        return next((g for g in self.groups.values()
+                     if getattr(g, "invite_code", None) == code), None)
+
+    def create_group(self, name, owner_id, invite_code, gen_time=time(8, 0)) -> Group:
+        g = Group(id=invite_code, name=name, members=[], gen_time=gen_time)
+        g.invite_code = invite_code  # 동적 속성(인메모리 전용)
+        self.groups[g.id] = g
+        self.add_member(g.id, owner_id)
+        return g
+
+    def add_member(self, group_id, user_id) -> None:
+        g = self.groups.get(group_id)
+        u = self.users.get(user_id)
+        if g is None or u is None:
+            raise ValueError("그룹/사용자를 찾을 수 없습니다")
+        if any(m.id == user_id for m in g.members):
+            return
+        if len(g.members) >= 6:
+            raise ValueError("그룹 최대 인원(6명) 초과")
+        g.members.append(u)
 
     def get_group(self, group_id: str) -> Group | None:
         return self.groups.get(group_id)
@@ -124,6 +160,33 @@ class SupabaseStore(Store):
                 "group_id": gf.group_id, "date": ds, "pair_id": c.pair_id,
                 "user_a_id": c.a_id, "user_b_id": c.b_id, "type": c.type, "line": c.line,
             } for c in gf.chemistry]).execute()
+
+    # --- 온보딩 ---
+    def upsert_user(self, toss_user_id, name, birth_date, birth_time=None) -> Member:
+        payload = {"toss_user_id": toss_user_id, "name": name,
+                   "birth_date": birth_date.isoformat()}
+        if birth_time is not None:
+            payload["birth_time"] = birth_time.isoformat()
+        row = self.sb.table("users").upsert(payload, on_conflict="toss_user_id").execute().data[0]
+        return Member(id=row["id"], name=row["name"],
+                      birth_date=date.fromisoformat(row["birth_date"]))
+
+    def get_group_by_invite_code(self, code: str) -> Group | None:
+        res = self.sb.table("groups").select("*").eq("invite_code", code).limit(1).execute().data
+        return self._build_group(res[0]) if res else None
+
+    def create_group(self, name, owner_id, invite_code, gen_time=time(8, 0)) -> Group:
+        g = self.sb.table("groups").insert({
+            "name": name, "owner_id": owner_id, "invite_code": invite_code,
+            "gen_time": gen_time.isoformat(),
+        }).execute().data[0]
+        self.add_member(g["id"], owner_id)
+        return self._build_group(g)
+
+    def add_member(self, group_id, user_id) -> None:
+        # 6명 초과는 DB 트리거(enforce_group_size)가 예외로 막음
+        self.sb.table("group_members").insert(
+            {"group_id": group_id, "user_id": user_id}).execute()
 
 
 # 기본 인메모리 싱글톤(개발/테스트). 운영은 Supabase.
