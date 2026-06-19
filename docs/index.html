@@ -30,8 +30,31 @@
   .legend i{display:inline-block; width:18px; height:3px; border-radius:2px; vertical-align:middle; margin-right:5px}
   .legend .g{background:var(--good)} .legend .c{background:var(--caution)}
   .hint{text-align:center; font-size:11.5px; color:var(--sub); padding-bottom:10px}
-  .edge{stroke-width:2.5; transition:opacity .2s, stroke-width .2s}
-  .edge.good{stroke:var(--good)} .edge.caution{stroke:var(--caution); stroke-dasharray:5 5}
+  svg{overflow:visible}
+  .edge{fill:none; stroke-width:3.2; stroke-linecap:round; cursor:pointer; filter:url(#glow);
+    stroke-dasharray:9 7; animation:flow 1.6s linear infinite;
+    transition:opacity .25s, stroke-width .2s}
+  .edge.good{stroke:var(--good)}
+  .edge.caution{stroke:var(--caution)}
+  .edge.fate{stroke:#ffd43b; stroke-width:4; animation-duration:1.05s}
+  .edge.hot{stroke-width:6}
+  @keyframes flow{to{stroke-dashoffset:-32}}
+  @media (prefers-reduced-motion:reduce){ .edge,.badge{animation:none} }
+  .badge{cursor:pointer; transform-box:fill-box; transform-origin:center; animation:bob 2.4s ease-in-out infinite}
+  .badge circle{fill:var(--card); stroke-width:1.5}
+  .badge.good circle{stroke:var(--good)} .badge.caution circle{stroke:var(--caution)}
+  .badge.fate circle{stroke:#ffd43b}
+  .badge text{font-size:13px; text-anchor:middle; dominant-baseline:central}
+  .badge.pop{animation:pop .42s ease}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
+  @keyframes pop{0%{transform:scale(1)}45%{transform:scale(1.55)}100%{transform:scale(1)}}
+  .reveal{margin:2px 10px 12px; min-height:20px; text-align:center; font-size:13px; font-weight:700;
+    line-height:1.55; color:var(--ink); padding:11px 14px; border-radius:14px; background:var(--surf2);
+    border:1px solid var(--line)}
+  .reveal .who{color:var(--acc); font-weight:800}
+  .reveal.good{border-color:rgba(52,227,160,.45)}
+  .reveal.caution{border-color:rgba(255,122,138,.45)}
+  .reveal.fate{border-color:#ffd43b}
   .node circle{transition:r .2s, stroke-width .2s}
   .node text{font-size:13px; font-weight:900; fill:#0d0e12; text-anchor:middle; dominant-baseline:central}
   .node .el{font-size:10px; font-weight:800}
@@ -123,11 +146,11 @@
 
 <div class="summary"><span class="tag">오늘의 그룹 한줄평</span><div id="groupComment"></div></div>
 
-<h2>인연 다이어그램 — 멤버를 탭해보세요</h2>
+<h2>🔮 인연 다이어그램 — 인연선·동그라미를 탭해보세요</h2>
 <div class="diagram">
   <svg id="svg" viewBox="0 0 320 300" aria-label="인연 다이어그램"></svg>
-  <div class="legend"><span><i class="g"></i>좋은 케미</span><span><i class="c"></i>주의 케미</span></div>
-  <div class="hint" id="hint">탭하면 그 사람의 인연선만 강조돼요</div>
+  <div class="legend"><span><i class="g"></i>좋은 인연</span><span><i class="c"></i>주의 인연</span><span>💘 오늘의 운명</span></div>
+  <div class="reveal" id="reveal">동그라미나 인연선을 탭해보세요 ✨</div>
 </div>
 
 <h2>멤버별 오늘의 운세</h2>
@@ -202,7 +225,7 @@ const DATA = {
     {a:"jihoon", b:"seoyeon", type:"caution", line:"지훈님 vs 서연님, 오늘 의견 다르면 일단 서연님 말부터"},
     {a:"jihoon", b:"haneul", type:"good", line:"지훈님 들뜰 때 하늘님이 차분히 잡아주면 완벽"},
     {a:"minjun", b:"haneul", type:"caution", line:"민준님 열정에 하늘님 찬물, 오늘은 서로 톤 조절"},
-    {a:"seoyeon", b:"doyun", type:"good", line:"서연님 판단에 도윤님 실행력, 오늘 합 최고"},
+    {a:"seoyeon", b:"doyun", type:"good", fate:true, line:"서연님 판단에 도윤님 실행력, 오늘 합 최고"},
     {a:"haneul", b:"doyun", type:"caution", line:"하늘님과 도윤님, 결정 미루다 둘 다 지칠 수 있어요"},
   ],
 };
@@ -239,22 +262,55 @@ DATA.members.forEach(m=>{
 
 // 인연 다이어그램 (원형 배치)
 const svg = document.getElementById("svg");
-const cx=160, cy=150, R=105;
+const reveal = document.getElementById("reveal");
+const cx=160, cy=148, R=98;
+const EL_HANJA={목:"木",화:"火",토:"土",금:"金",수:"水"};
+const GOOD_EMO=["💚","✨","🍀","🤝"], CAUT_EMO=["⚡","🔥","🌶️","💥"];
 const pos = {};
 DATA.members.forEach((m,i)=>{
   const ang = -Math.PI/2 + i*2*Math.PI/DATA.members.length;
   pos[m.id] = {x:cx+R*Math.cos(ang), y:cy+R*Math.sin(ang), el:m.el, name:m.name};
 });
-// 엣지 먼저(노드 아래 깔리게)
-DATA.chemistry.forEach(c=>{
+
+// defs: 네온 글로우 + 중앙 광채
+svg.insertAdjacentHTML("beforeend", `<defs>
+  <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="2.6" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <radialGradient id="bgglow" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="rgba(198,255,61,.10)"/>
+    <stop offset="100%" stop-color="rgba(198,255,61,0)"/>
+  </radialGradient>
+</defs>
+<circle cx="${cx}" cy="${cy}" r="118" fill="url(#bgglow)"></circle>`);
+
+// 엣지(바깥으로 볼록한 곡선) + 케미 이모지 뱃지
+let gi=0, ci=0;
+DATA.chemistry.forEach((c,idx)=>{
   const p=pos[c.a], q=pos[c.b];
-  const ln=document.createElementNS(NS,"line");
-  ln.setAttribute("x1",p.x); ln.setAttribute("y1",p.y);
-  ln.setAttribute("x2",q.x); ln.setAttribute("y2",q.y);
-  ln.setAttribute("class",`edge ${c.type}`);
-  ln.dataset.a=c.a; ln.dataset.b=c.b;
-  svg.appendChild(ln);
+  const mx=(p.x+q.x)/2, my=(p.y+q.y)/2;
+  const ctrlx=cx+(mx-cx)*1.32, ctrly=cy+(my-cy)*1.32;
+  const bx=0.25*p.x+0.5*ctrlx+0.25*q.x, by=0.25*p.y+0.5*ctrly+0.25*q.y; // 곡선 중점(t=0.5)
+  const cls = c.fate ? "fate" : c.type;
+  const emo = c.fate ? "💘" : (c.type==="good" ? GOOD_EMO[gi++%GOOD_EMO.length] : CAUT_EMO[ci++%CAUT_EMO.length]);
+
+  const path=document.createElementNS(NS,"path");
+  path.setAttribute("d",`M ${p.x} ${p.y} Q ${ctrlx} ${ctrly} ${q.x} ${q.y}`);
+  path.setAttribute("class",`edge ${cls}`);
+  path.dataset.a=c.a; path.dataset.b=c.b; path.dataset.idx=idx;
+  path.addEventListener("click",e=>{ e.stopPropagation(); showChem(idx); });
+  svg.appendChild(path);
+
+  const badge=document.createElementNS(NS,"g");
+  badge.setAttribute("class",`badge ${cls}`);
+  badge.dataset.a=c.a; badge.dataset.b=c.b; badge.dataset.idx=idx;
+  badge.style.animationDelay=(idx*0.18)+"s";
+  badge.innerHTML=`<circle cx="${bx}" cy="${by}" r="13"></circle><text x="${bx}" y="${by}">${emo}</text>`;
+  badge.addEventListener("click",e=>{ e.stopPropagation(); showChem(idx); });
+  svg.appendChild(badge);
 });
+
 // 노드
 DATA.members.forEach(m=>{
   const p=pos[m.id];
@@ -264,34 +320,55 @@ DATA.members.forEach(m=>{
   g.innerHTML=`<circle cx="${p.x}" cy="${p.y}" r="22" fill="${PALETTE[m.el]}"
       stroke="#0d0e12" stroke-width="3"></circle>
     <text x="${p.x}" y="${p.y-3}">${m.name}</text>
-    <text class="el" x="${p.x}" y="${p.y+10}">${({목:"木",화:"火",토:"土",금:"金",수:"水"})[m.el]}</text>`;
+    <text class="el" x="${p.x}" y="${p.y+10}">${EL_HANJA[m.el]}</text>`;
   g.addEventListener("click",()=>toggle(m.id));
   svg.appendChild(g);
 });
 
+const allEdges=()=>[...svg.querySelectorAll(".edge")];
+const allBadges=()=>[...svg.querySelectorAll(".badge")];
+const allNodes=()=>[...svg.querySelectorAll(".node")];
+function setReveal(html, cls){ reveal.className="reveal"+(cls?" "+cls:""); reveal.innerHTML=html; }
+
+// 케미선/뱃지 탭 → 그 인연만 강조 + 코멘트 공개 (재미 포인트)
+function showChem(idx){
+  const c=DATA.chemistry[idx];
+  activeId=null;
+  allNodes().forEach(n=>n.classList.remove("dim"));
+  document.querySelectorAll(".card").forEach(x=>x.classList.remove("active"));
+  allEdges().forEach(e=>{ const on=+e.dataset.idx===idx;
+    e.classList.toggle("hot",on); e.classList.toggle("dim",!on); });
+  allBadges().forEach(b=>{ const on=+b.dataset.idx===idx;
+    b.classList.toggle("dim",!on);
+    if(on){ b.classList.remove("pop"); void b.getBBox();
+      b.classList.add("pop"); b.addEventListener("animationend",()=>b.classList.remove("pop"),{once:true}); }
+  });
+  const tag=c.fate?"💘 오늘의 운명 인연":(c.type==="good"?"💚 좋은 인연":"⚡ 주의 인연");
+  setReveal(`<span class="who">${tag}</span><br>${c.line}`, c.fate?"fate":c.type);
+}
+
 function toggle(id){
   activeId = (activeId===id)?null:id;
-  const edges=[...svg.querySelectorAll(".edge")];
-  const nodes=[...svg.querySelectorAll(".node")];
   if(activeId===null){
-    edges.forEach(e=>e.classList.remove("dim"));
-    nodes.forEach(n=>n.classList.remove("dim"));
+    allEdges().forEach(e=>e.classList.remove("dim","hot"));
+    allBadges().forEach(b=>b.classList.remove("dim"));
+    allNodes().forEach(n=>n.classList.remove("dim"));
     document.querySelectorAll(".card").forEach(c=>c.classList.remove("active"));
-    document.getElementById("hint").textContent="탭하면 그 사람의 인연선만 강조돼요";
+    setReveal("동그라미나 인연선을 탭해보세요 ✨","");
     return;
   }
-  const connected=new Set([id]);
-  edges.forEach(e=>{
-    const on = e.dataset.a===id||e.dataset.b===id;
-    e.classList.toggle("dim", !on);
-    if(on){ connected.add(e.dataset.a); connected.add(e.dataset.b); }
-  });
-  nodes.forEach(n=>n.classList.toggle("dim", !connected.has(n.dataset.id)));
+  const connected=new Set([id]); let good=0, caut=0;
+  DATA.chemistry.forEach(c=>{ if(c.a===id||c.b===id){ connected.add(c.a); connected.add(c.b);
+    (c.type==="good"?good++:caut++); } });
+  allEdges().forEach(e=>{ const on=e.dataset.a===id||e.dataset.b===id;
+    e.classList.toggle("dim",!on); e.classList.toggle("hot",on); });
+  allBadges().forEach(b=>b.classList.toggle("dim",!(b.dataset.a===id||b.dataset.b===id)));
+  allNodes().forEach(n=>n.classList.toggle("dim",!connected.has(n.dataset.id)));
   document.querySelectorAll(".card").forEach(c=>c.classList.remove("active"));
   const card=document.getElementById("card-"+id);
   card.classList.add("active");
   card.scrollIntoView({behavior:"smooth", block:"center"});
-  document.getElementById("hint").textContent=`${nameById[id]}님의 인연선만 강조 중 · 다시 탭하면 해제`;
+  setReveal(`<span class="who">${nameById[id]}님의 인연</span> · 💚 ${good} · ⚡ ${caut}<br>인연선 뱃지를 탭하면 케미가 보여요`,"");
 }
 
 let toastTimer;
