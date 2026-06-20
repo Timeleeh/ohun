@@ -1,0 +1,28 @@
+# Render Blueprint — 깃 연결 후 "New + → Blueprint"로 한 번에 배포.
+# (Railway/Fly 등은 Dockerfile 자동 감지 → 이 파일 불필요)
+services:
+  - type: web
+    name: chemisaju-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # 프론트(GitHub Pages) 출처만 허용
+      - key: OHN_CORS_ORIGINS
+        value: https://timeleeh.github.io
+      # PoC: LLM 없이 동작(운세 생성 없이도 카드/공유 검증 가능)
+      - key: OHN_PROVIDER
+        value: mock
+      # 아래는 콘솔에서 직접 입력(시크릿) — sync:false
+      - key: OHN_KAKAO_JS_KEY
+        sync: false
+      - key: OHN_APP_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
