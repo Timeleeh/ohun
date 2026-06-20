@@ -85,10 +85,30 @@ python -m venv .venv
    ```
    (LLM 호출 없이 DB 경로만 검증, 테스트 행은 자동 정리)
 
+## 프론트 ↔ API 연결 (`docs/index.html`)
+
+목업 화면이 **실제 API를 호출**하도록 연결됨. 설정이 없으면 샘플 데이터로 그대로 동작(폴백).
+
+- 화면 전용 엔드포인트:
+  - `GET /groups/{group_id}/view` — 캐시된 운세 + 그룹 멤버(이름·오행색)를 조인해 **바로 그릴 수 있는** 형태로 반환
+  - `GET /users/{user_id}/groups` — 그룹 전환 스위처용 목록
+  - 오행색(`element`)은 운세 행의 `base` 라벨(예: "金 기운 …")을 단일 출처로 산출 → 노드 색이 항상 라벨과 일치
+- 연결 방법(쿼리스트링 또는 localStorage):
+  ```
+  https://timeleeh.github.io/ohun/?api=<백엔드주소>&group=<group_id>&user=<user_id>
+  ```
+  또는 `localStorage.chemisaju_api / chemisaju_group / chemisaju_user`
+- CORS: `OHN_CORS_ORIGINS`(콤마 구분, 기본 `*`). 운영은 GitHub Pages 출처로 좁힐 것.
+- 로컬 e2e 예:
+  ```bash
+  OHN_PROVIDER=mock .venv/Scripts/python -m uvicorn app.main:app --port 8000
+  # 브라우저에서 docs/index.html?api=http://127.0.0.1:8000&group=<id>&user=<id>
+  ```
+
 ## 다음 단계 (미구현)
 
 - ~~Supabase 연동~~ ✅ (스키마 + SupabaseStore)
+- ~~프론트(목업) → 실제 API 연결~~ ✅ (`/view` · `/users/{id}/groups` + CORS + 폴백)
 - 실제 LLM 출력 품질 확인 (Gemini/Anthropic 키 + 크레딧)
-- 토스 미니앱 인증/사용자정보 연동 어댑터
+- 토스 미니앱 인증/사용자정보 연동 어댑터(MockAuth) → 실호출(사전계약·키 발급 대기)
 - 카카오 공유 카드 이미지 렌더링(SSR) + 토스 웹뷰 PoC
-- 프론트엔드(인연 다이어그램)는 `docs/index.html` 목업 → 실제 앱 연결

@@ -202,9 +202,20 @@
 <footer>케미사주 · 인터랙티브 목업 · 샘플 데이터</footer>
 
 <script>
-// ===== 샘플 데이터 (실제 서비스는 배치 생성 결과를 주입) =====
+// ===== 설정: 실제 API 연결 (미설정 시 샘플 데이터로 동작) =====
+// 사용법: ?api=<백엔드주소>&group=<group_id>[&user=<user_id>]
+//   또는 localStorage 에 chemisaju_api / chemisaju_group / chemisaju_user 저장
+const QS = new URLSearchParams(location.search);
+const cfg = k => QS.get(k) || localStorage.getItem("chemisaju_" + k) || "";
+const API = cfg("api").replace(/\/+$/, "");
+let GROUP_ID = cfg("group");
+let USER_ID  = cfg("user");
+const LIVE = !!(API && GROUP_ID);
+
 const PALETTE = {목:"#34e3a0", 화:"#ff7a8a", 토:"#ffc24b", 금:"#aab2c0", 수:"#54a0ff"};
-const DATA = {
+
+// 샘플 데이터(오프라인/목업 폴백) — 실제 서비스는 배치 생성 결과를 API로 주입
+const SAMPLE = {
   date:"2026년 6월 19일 (금)",
   dayElement:"木",
   groupComment:"다들 추진력은 넘치는데 방향이 제각각인 날, 회의는 짧게.",
@@ -230,100 +241,141 @@ const DATA = {
   ],
 };
 
-// ===== 렌더링 =====
+// ===== 상태 / DOM =====
 const NS="http://www.w3.org/2000/svg";
-const nameById = Object.fromEntries(DATA.members.map(m=>[m.id,m.name]));
-let activeId = null;
-
-document.getElementById("date").textContent = DATA.date;
-document.getElementById("dayEl").textContent = DATA.dayElement;
-document.getElementById("groupComment").textContent = DATA.groupComment;
-
-// 멤버 카드
-const cards = document.getElementById("cards");
-DATA.members.forEach(m=>{
-  const rel = DATA.chemistry.filter(c=>c.a===m.id||c.b===m.id);
-  const chips = rel.map(c=>{
-    const other = nameById[c.a===m.id?c.b:c.a];
-    return `<div class="chip ${c.type}">${c.type==="good"?"💚":"⚠️"} ${c.line}</div>`;
-  }).join("");
-  const stars = "★".repeat(m.score)+"☆".repeat(5-m.score);
-  cards.insertAdjacentHTML("beforeend", `
-    <div class="card" id="card-${m.id}">
-      <div class="crow">
-        <div class="dot" style="background:${PALETTE[m.el]}">${m.name[0]}</div>
-        <div><div class="name">${m.name}</div><div class="base">${m.base}</div></div>
-        <div class="score">${stars}</div>
-      </div>
-      <div class="line">${m.line}</div>
-      <div class="chem">${chips}</div>
-    </div>`);
-});
-
-// 인연 다이어그램 (원형 배치)
 const svg = document.getElementById("svg");
 const reveal = document.getElementById("reveal");
-const cx=160, cy=148, R=98;
 const EL_HANJA={목:"木",화:"火",토:"土",금:"金",수:"水"};
 const GOOD_EMO=["💚","✨","🍀","🤝"], CAUT_EMO=["⚡","🔥","🌶️","💥"];
-const pos = {};
-DATA.members.forEach((m,i)=>{
-  const ang = -Math.PI/2 + i*2*Math.PI/DATA.members.length;
-  pos[m.id] = {x:cx+R*Math.cos(ang), y:cy+R*Math.sin(ang), el:m.el, name:m.name};
-});
+let DATA, nameById = {}, pos = {}, activeId = null;
 
-// defs: 네온 글로우 + 중앙 광채
-svg.insertAdjacentHTML("beforeend", `<defs>
-  <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
-    <feGaussianBlur stdDeviation="2.6" result="b"/>
-    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-  </filter>
-  <radialGradient id="bgglow" cx="50%" cy="50%" r="50%">
-    <stop offset="0%" stop-color="rgba(198,255,61,.10)"/>
-    <stop offset="100%" stop-color="rgba(198,255,61,0)"/>
-  </radialGradient>
-</defs>
-<circle cx="${cx}" cy="${cy}" r="118" fill="url(#bgglow)"></circle>`);
+// ===== API =====
+async function apiGet(path){
+  const r = await fetch(API + path, {headers:{accept:"application/json"}});
+  if(!r.ok) throw new Error(path + " → " + r.status);
+  return r.json();
+}
+async function apiPost(path, body){
+  const r = await fetch(API + path, {method:"POST",
+    headers:{"content-type":"application/json", accept:"application/json"},
+    body: JSON.stringify(body)});
+  if(!r.ok) throw new Error(path + " → " + r.status);
+  return r.json();
+}
+// 백엔드 /view 응답 → 화면 DATA 형태로 변환
+function adapt(v){
+  return {
+    date: v.date_label,
+    dayElement: v.day_element,
+    groupComment: v.group_comment,
+    groupName: v.group_name,
+    members: v.members.map(m=>({id:m.id, name:m.name, el:m.element, base:m.base, score:m.score, line:m.line})),
+    chemistry: v.chemistry.map(c=>({a:c.a, b:c.b, type:c.type, fate:c.fate, line:c.line})),
+  };
+}
 
-// 엣지(바깥으로 볼록한 곡선) + 케미 이모지 뱃지
-let gi=0, ci=0;
-DATA.chemistry.forEach((c,idx)=>{
-  const p=pos[c.a], q=pos[c.b];
-  const mx=(p.x+q.x)/2, my=(p.y+q.y)/2;
-  const ctrlx=cx+(mx-cx)*1.32, ctrly=cy+(my-cy)*1.32;
-  const bx=0.25*p.x+0.5*ctrlx+0.25*q.x, by=0.25*p.y+0.5*ctrly+0.25*q.y; // 곡선 중점(t=0.5)
-  const cls = c.fate ? "fate" : c.type;
-  const emo = c.fate ? "💘" : (c.type==="good" ? GOOD_EMO[gi++%GOOD_EMO.length] : CAUT_EMO[ci++%CAUT_EMO.length]);
+// ===== 렌더링 =====
+function render(data){
+  DATA = data;
+  nameById = Object.fromEntries(DATA.members.map(m=>[m.id, m.name]));
+  activeId = null;
+  document.getElementById("date").textContent = DATA.date;
+  document.getElementById("dayEl").textContent = DATA.dayElement;
+  document.getElementById("groupComment").textContent = DATA.groupComment;
+  if(DATA.groupName) document.getElementById("gname").textContent = DATA.groupName;
+  renderCards();
+  renderDiagram();
+  setReveal("동그라미나 인연선을 탭해보세요 ✨", "");
+}
 
-  const path=document.createElementNS(NS,"path");
-  path.setAttribute("d",`M ${p.x} ${p.y} Q ${ctrlx} ${ctrly} ${q.x} ${q.y}`);
-  path.setAttribute("class",`edge ${cls}`);
-  path.dataset.a=c.a; path.dataset.b=c.b; path.dataset.idx=idx;
-  path.addEventListener("click",e=>{ e.stopPropagation(); showChem(idx); });
-  svg.appendChild(path);
+// 멤버 카드
+function renderCards(){
+  const cards = document.getElementById("cards");
+  cards.innerHTML = "";
+  DATA.members.forEach(m=>{
+    const rel = DATA.chemistry.filter(c=>c.a===m.id||c.b===m.id);
+    const chips = rel.map(c=>{
+      const other = nameById[c.a===m.id?c.b:c.a];
+      return `<div class="chip ${c.type}">${c.type==="good"?"💚":"⚠️"} ${c.line}</div>`;
+    }).join("");
+    const stars = "★".repeat(m.score)+"☆".repeat(5-m.score);
+    cards.insertAdjacentHTML("beforeend", `
+      <div class="card" id="card-${m.id}">
+        <div class="crow">
+          <div class="dot" style="background:${PALETTE[m.el]}">${m.name[0]}</div>
+          <div><div class="name">${m.name}</div><div class="base">${m.base}</div></div>
+          <div class="score">${stars}</div>
+        </div>
+        <div class="line">${m.line}</div>
+        <div class="chem">${chips}</div>
+      </div>`);
+  });
+}
 
-  const badge=document.createElementNS(NS,"g");
-  badge.setAttribute("class",`badge ${cls}`);
-  badge.dataset.a=c.a; badge.dataset.b=c.b; badge.dataset.idx=idx;
-  badge.style.animationDelay=(idx*0.18)+"s";
-  badge.innerHTML=`<circle cx="${bx}" cy="${by}" r="13"></circle><text x="${bx}" y="${by}">${emo}</text>`;
-  badge.addEventListener("click",e=>{ e.stopPropagation(); showChem(idx); });
-  svg.appendChild(badge);
-});
+// 인연 다이어그램 (원형 배치)
+function renderDiagram(){
+  svg.innerHTML = "";
+  pos = {};
+  const cx=160, cy=148, R=98;
+  DATA.members.forEach((m,i)=>{
+    const ang = -Math.PI/2 + i*2*Math.PI/DATA.members.length;
+    pos[m.id] = {x:cx+R*Math.cos(ang), y:cy+R*Math.sin(ang), el:m.el, name:m.name};
+  });
 
-// 노드
-DATA.members.forEach(m=>{
-  const p=pos[m.id];
-  const g=document.createElementNS(NS,"g");
-  g.setAttribute("class","node"); g.dataset.id=m.id;
-  g.style.cursor="pointer";
-  g.innerHTML=`<circle cx="${p.x}" cy="${p.y}" r="22" fill="${PALETTE[m.el]}"
-      stroke="#0d0e12" stroke-width="3"></circle>
-    <text x="${p.x}" y="${p.y-3}">${m.name}</text>
-    <text class="el" x="${p.x}" y="${p.y+10}">${EL_HANJA[m.el]}</text>`;
-  g.addEventListener("click",()=>toggle(m.id));
-  svg.appendChild(g);
-});
+  // defs: 네온 글로우 + 중앙 광채
+  svg.insertAdjacentHTML("beforeend", `<defs>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="2.6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <radialGradient id="bgglow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="rgba(198,255,61,.10)"/>
+      <stop offset="100%" stop-color="rgba(198,255,61,0)"/>
+    </radialGradient>
+  </defs>
+  <circle cx="${cx}" cy="${cy}" r="118" fill="url(#bgglow)"></circle>`);
+
+  // 엣지(바깥으로 볼록한 곡선) + 케미 이모지 뱃지
+  let gi=0, ci=0;
+  DATA.chemistry.forEach((c,idx)=>{
+    const p=pos[c.a], q=pos[c.b];
+    if(!p || !q) return;  // 페어 멤버가 현재 그룹에 없으면 스킵(방어)
+    const mx=(p.x+q.x)/2, my=(p.y+q.y)/2;
+    const ctrlx=cx+(mx-cx)*1.32, ctrly=cy+(my-cy)*1.32;
+    const bx=0.25*p.x+0.5*ctrlx+0.25*q.x, by=0.25*p.y+0.5*ctrly+0.25*q.y; // 곡선 중점(t=0.5)
+    const cls = c.fate ? "fate" : c.type;
+    const emo = c.fate ? "💘" : (c.type==="good" ? GOOD_EMO[gi++%GOOD_EMO.length] : CAUT_EMO[ci++%CAUT_EMO.length]);
+
+    const path=document.createElementNS(NS,"path");
+    path.setAttribute("d",`M ${p.x} ${p.y} Q ${ctrlx} ${ctrly} ${q.x} ${q.y}`);
+    path.setAttribute("class",`edge ${cls}`);
+    path.dataset.a=c.a; path.dataset.b=c.b; path.dataset.idx=idx;
+    path.addEventListener("click",e=>{ e.stopPropagation(); showChem(idx); });
+    svg.appendChild(path);
+
+    const badge=document.createElementNS(NS,"g");
+    badge.setAttribute("class",`badge ${cls}`);
+    badge.dataset.a=c.a; badge.dataset.b=c.b; badge.dataset.idx=idx;
+    badge.style.animationDelay=(idx*0.18)+"s";
+    badge.innerHTML=`<circle cx="${bx}" cy="${by}" r="13"></circle><text x="${bx}" y="${by}">${emo}</text>`;
+    badge.addEventListener("click",e=>{ e.stopPropagation(); showChem(idx); });
+    svg.appendChild(badge);
+  });
+
+  // 노드
+  DATA.members.forEach(m=>{
+    const p=pos[m.id];
+    const g=document.createElementNS(NS,"g");
+    g.setAttribute("class","node"); g.dataset.id=m.id;
+    g.style.cursor="pointer";
+    g.innerHTML=`<circle cx="${p.x}" cy="${p.y}" r="22" fill="${PALETTE[m.el]}"
+        stroke="#0d0e12" stroke-width="3"></circle>
+      <text x="${p.x}" y="${p.y-3}">${m.name}</text>
+      <text class="el" x="${p.x}" y="${p.y+10}">${EL_HANJA[m.el]}</text>`;
+    g.addEventListener("click",()=>toggle(m.id));
+    svg.appendChild(g);
+  });
+}
 
 const allEdges=()=>[...svg.querySelectorAll(".edge")];
 const allBadges=()=>[...svg.querySelectorAll(".badge")];
@@ -392,20 +444,32 @@ function copyLink(){
   toastMsg("초대 링크가 복사됐어요");
 }
 
-// 그룹 목록 / 전환 / 생성 (FR-02)
-let GROUPS=["우리팀 단톡방","대학 동기방","가족방"];
+// 그룹 목록 / 전환 / 생성 (FR-02)  — 항목: {id, name}
+let GROUPS=[{id:"우리팀 단톡방",name:"우리팀 단톡방"},
+           {id:"대학 동기방",name:"대학 동기방"},
+           {id:"가족방",name:"가족방"}];
 function currentGroup(){ return document.getElementById("gname").textContent; }
 function renderGroups(){
   const cur=currentGroup();
   document.getElementById("glist").innerHTML='<div class="glist">'+GROUPS.map(g=>
-    `<div class="gitem" onclick="pickGroup(this.dataset.g)" data-g="${g}">${g}`+
-    (g===cur?'<span class="mini">현재</span>':'<span class="mini">전환 ›</span>')+'</div>').join("")+'</div>';
+    `<div class="gitem" onclick="pickGroup(this.dataset.id, this.dataset.name)" data-id="${g.id}" data-name="${g.name}">${g.name}`+
+    (g.name===cur?'<span class="mini">현재</span>':'<span class="mini">전환 ›</span>')+'</div>').join("")+'</div>';
 }
-function openGroups(){ renderGroups(); closeSheets();
+async function openGroups(){
+  if(LIVE && USER_ID){
+    try{ const gs = await apiGet(`/users/${encodeURIComponent(USER_ID)}/groups`);
+         if(gs.length) GROUPS = gs.map(g=>({id:g.id, name:g.name})); }
+    catch(e){ console.warn(e); }
+  }
+  renderGroups(); closeSheets();
   document.getElementById("scrim").classList.add("show");
-  document.getElementById("gsheet").classList.add("show"); }
-function pickGroup(name){ document.getElementById("gname").textContent=name; closeSheets();
-  toastMsg(name+" 운세를 불러왔어요"); }
+  document.getElementById("gsheet").classList.add("show");
+}
+function pickGroup(id, name){
+  document.getElementById("gname").textContent=name; closeSheets();
+  if(LIVE){ GROUP_ID=id; localStorage.setItem("chemisaju_group", id); loadGroup(); }
+  else { toastMsg(name+" 운세를 불러왔어요"); }
+}
 
 // 화면 전환 (홈 ↔ 그룹 만들기)
 function showHome(){ document.getElementById("create").hidden=true;
@@ -413,15 +477,45 @@ function showHome(){ document.getElementById("create").hidden=true;
 function goCreate(){ closeSheets(); document.getElementById("home").hidden=true;
   document.getElementById("create").hidden=false;
   document.getElementById("gn").value=""; window.scrollTo(0,0); }
-function createGroup(){
+async function createGroup(){
   const name=(document.getElementById("gn").value||"").trim()||"새 그룹";
   const time=document.getElementById("gt").value||"08:00";
-  if(!GROUPS.includes(name)) GROUPS.unshift(name);
+  if(LIVE && USER_ID){
+    try{
+      const g = await apiPost("/groups", {name, owner_id:USER_ID, gen_time:time});
+      GROUP_ID = g.group_id; localStorage.setItem("chemisaju_group", GROUP_ID);
+      document.getElementById("gname").textContent=name; showHome();
+      toastMsg(`'${name}' 생성! 매일 ${time}에 운세가 와요`);
+      await loadGroup();          // 갓 만든 그룹은 아직 운세 미생성 → 안내 토스트
+      setTimeout(openInvite,650);
+    }catch(e){ console.warn(e); toastMsg("그룹 생성 실패 (API)"); }
+    return;
+  }
+  // 목업(오프라인)
+  if(!GROUPS.some(x=>x.id===name)) GROUPS.unshift({id:name,name});
   document.getElementById("gname").textContent=name;
   showHome();
   toastMsg(`'${name}' 생성! 매일 ${time}에 운세가 와요`);
   setTimeout(openInvite,650);   // 만들면 바로 친구 초대 유도
 }
+
+// ===== 부팅: API 설정 있으면 실제 데이터, 없으면 샘플 =====
+async function loadGroup(){
+  try{
+    const v = await apiGet(`/groups/${encodeURIComponent(GROUP_ID)}/view`);
+    render(adapt(v));
+    document.querySelector("footer").textContent = "케미사주 · 실시간 API 연결됨";
+  }catch(e){
+    console.warn(e);
+    toastMsg(String(e).includes("404") ? "아직 오늘 운세가 생성되지 않았어요" : "API 연결 실패 — 샘플 표시");
+    render(SAMPLE);
+  }
+}
+async function boot(){
+  if(LIVE) await loadGroup();
+  else render(SAMPLE);
+}
+boot();
 </script>
 </body>
 </html>

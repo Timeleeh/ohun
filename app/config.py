@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     max_group_size: int = 6
     max_pairs: int = 6
 
+    # CORS 허용 출처(콤마 구분). 기본 "*"(개발). 운영은 GitHub Pages 출처로 좁힐 것.
+    cors_origins: str = "*"
+
     # Supabase (없으면 인메모리 store 사용)
     supabase_url: str = ""
     supabase_key: str = ""

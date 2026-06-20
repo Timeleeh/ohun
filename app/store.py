@@ -24,6 +24,7 @@ class Group:
 class Store:
     def get_group(self, group_id: str) -> Group | None: ...
     def list_groups(self) -> list[Group]: ...
+    def list_groups_for_user(self, user_id: str) -> list[Group]: ...
     def get_fortune(self, group_id: str, d: date) -> GroupFortune | None: ...
     def save_fortune(self, gf: GroupFortune) -> None: ...
     # 온보딩(FR-01/02/03)
@@ -78,6 +79,10 @@ class InMemoryStore(Store):
     def list_groups(self) -> list[Group]:
         return list(self.groups.values())
 
+    def list_groups_for_user(self, user_id: str) -> list[Group]:
+        return [g for g in self.groups.values()
+                if any(m.id == user_id for m in g.members)]
+
     def get_fortune(self, group_id: str, d: date) -> GroupFortune | None:
         return self._cache.get((group_id, d.isoformat()))
 
@@ -120,6 +125,15 @@ class SupabaseStore(Store):
 
     def list_groups(self) -> list[Group]:
         res = self.sb.table("groups").select("*").execute().data or []
+        return [self._build_group(g) for g in res]
+
+    def list_groups_for_user(self, user_id: str) -> list[Group]:
+        rows = (self.sb.table("group_members").select("group_id")
+                .eq("user_id", user_id).execute().data or [])
+        ids = [r["group_id"] for r in rows]
+        if not ids:
+            return []
+        res = self.sb.table("groups").select("*").in_("id", ids).execute().data or []
         return [self._build_group(g) for g in res]
 
     # --- 운세 캐시 ---
