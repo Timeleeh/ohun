@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>케미사주 — 앱 로고 (600×600)</title>
+<style>
+  body{margin:0;background:#202329;color:#e8eaed;font-family:-apple-system,"Malgun Gothic",sans-serif;
+    display:flex;flex-direction:column;align-items:center;gap:18px;padding:28px}
+  h1{font-size:16px;font-weight:700;margin:0;color:#aab2c0}
+  .frame{box-shadow:0 10px 40px rgba(0,0,0,.5);border-radius:8px;overflow:hidden;width:300px;height:300px}
+  .frame svg{width:300px;height:300px;display:block}  /* 미리보기 50% 축소, 실제 600px */
+  button{background:#c6ff3d;color:#0d0e12;border:none;border-radius:12px;padding:13px 22px;
+    font-size:15px;font-weight:800;cursor:pointer}
+  .hint{font-size:12.5px;color:#8d93a1;text-align:center;line-height:1.6;max-width:340px}
+</style>
+</head>
+<body>
+<h1>케미사주 · 앱 로고 (600×600 PNG)</h1>
+<div class="frame">
+<svg id="logo" xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16191f"/><stop offset="1" stop-color="#0b0c10"/>
+    </linearGradient>
+    <linearGradient id="link" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c6ff3d"/><stop offset="1" stop-color="#ff7a8a"/>
+    </linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="600" height="600" fill="url(#bg)"/>
+
+  <!-- 케미 링크: 두 사람을 잇는 빛나는 선 -->
+  <path d="M 222 232 Q 300 150 378 232" fill="none" stroke="url(#link)"
+        stroke-width="16" stroke-linecap="round" filter="url(#glow)"/>
+  <!-- 인연 노드 (왼쪽 라임 / 오른쪽 핑크) -->
+  <circle cx="222" cy="232" r="44" fill="#c6ff3d" filter="url(#glow)"/>
+  <circle cx="378" cy="232" r="44" fill="#ff7a8a" filter="url(#glow)"/>
+  <!-- 케미 스파크 -->
+  <text x="300" y="158" text-anchor="middle" font-size="46" filter="url(#glow)">✦</text>
+
+  <!-- 워드마크 -->
+  <text x="300" y="430" text-anchor="middle" font-family="'Malgun Gothic',sans-serif"
+        font-weight="900" font-size="118" letter-spacing="-4">
+    <tspan fill="#c6ff3d">케미</tspan><tspan fill="#ffffff">사주</tspan>
+  </text>
+  <text x="300" y="492" text-anchor="middle" font-family="'Malgun Gothic',sans-serif"
+        font-weight="700" font-size="33" fill="#8d93a1" letter-spacing="2">우리 그룹 케미 운세</text>
+</svg>
+</div>
+<button onclick="dl()">⬇ PNG 다운로드 (600×600)</button>
+<div class="hint">버튼으로 정확한 600×600 PNG가 저장돼요. (불투명 배경 — 토스 로고 규격 충족)<br>잘 안 받아지면 위 로고를 캡쳐해도 됩니다.</div>
+
+<script>
+function dl(){
+  const svg=document.getElementById("logo");
+  const xml=new XMLSerializer().serializeToString(svg);
+  const url="data:image/svg+xml;base64,"+btoa(unescape(encodeURIComponent(xml)));
+  const img=new Image();
+  img.onload=function(){
+    const c=document.createElement("canvas"); c.width=600; c.height=600;
+    c.getContext("2d").drawImage(img,0,0,600,600);
+    const a=document.createElement("a"); a.download="chemisaju-logo-600.png";
+    a.href=c.toDataURL("image/png"); a.click();
+  };
+  img.src=url;
+}
+</script>
+</body>
+</html>

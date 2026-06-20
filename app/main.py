@@ -15,7 +15,7 @@ from .auth import get_auth
 from . import fortune
 
 KST = timezone(timedelta(hours=9))
-app = FastAPI(title="오행운 API", version="0.1.0")
+app = FastAPI(title="케미사주 API", version="0.1.0")
 _cfg = BatchConfig()
 store = get_store()  # Supabase 크리덴셜 있으면 Supabase, 없으면 인메모리
 auth = get_auth()    # 토스 크리덴셜 있으면 TossAuth, 없으면 MockAuth

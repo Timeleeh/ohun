@@ -1,4 +1,4 @@
--- 오행운 Supabase(PostgreSQL) 스키마
+-- 케미사주 Supabase(PostgreSQL) 스키마
 -- 확정 반영: 그룹 최대 6명, 토스 연동 양력 생년월일만(calendar solar 고정),
 --            그룹별 지정 시각 하루 1회 배치(gen_time), (group_id,date) 캐시 dedup.
 -- 주의: 운세는 '그룹 컨텍스트'로 생성되므로 개인 운세도 group_id별로 저장한다
