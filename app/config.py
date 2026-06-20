@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     # CORS 허용 출처(콤마 구분). 기본 "*"(개발). 운영은 GitHub Pages 출처로 좁힐 것.
     cors_origins: str = "*"
 
+    # 공유(카카오) 설정
+    app_url: str = "https://timeleeh.github.io/ohun/"  # 공유 링크가 향하는 프론트/앱 URL
+    kakao_js_key: str = ""  # 카카오 JavaScript 키(선택). /share/config로 프론트에 노출
+
     # Supabase (없으면 인메모리 store 사용)
     supabase_url: str = ""
     supabase_key: str = ""

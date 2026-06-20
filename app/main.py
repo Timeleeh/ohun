@@ -4,8 +4,11 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime, time, timezone, timedelta
 
-from fastapi import FastAPI, HTTPException
+import html
+
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from .config import settings
@@ -16,6 +19,7 @@ from .scheduler import BatchConfig, tick
 from .auth import get_auth
 from .saju.elements import personal_element, ELEMENT_HANJA
 from .llm.prompts import WEEKDAY_KO
+from .share import render_card_png, SAMPLE_CARD
 from . import fortune
 
 _HANJA_KO = {v: k for k, v in ELEMENT_HANJA.items()}  # 木→목 ...
@@ -110,13 +114,11 @@ def _date_label(d: date) -> str:
     return f"{d.year}년 {d.month}월 {d.day}일 ({WEEKDAY_KO[d.weekday()][0]})"
 
 
-@app.get("/groups/{group_id}/view", response_model=GroupFortuneView)
-def get_fortune_view(group_id: str, d: date | None = None):
-    """프론트(화면) 전용: 캐시된 운세 + 그룹 멤버(이름·오행)를 조인해 바로 그릴 수 있는 형태로 반환."""
-    target = d or _today_kst()
+def _compose_view(group_id: str, target: date) -> GroupFortuneView | None:
+    """캐시된 운세 + 그룹 멤버(이름·오행)를 조인해 화면용 뷰로 합성. 없으면 None."""
     gf = store.get_fortune(group_id, target)
     if gf is None:
-        raise HTTPException(404, "아직 생성되지 않았습니다(배치 대기 또는 비활성 그룹).")
+        return None
     group = store.get_group(group_id)
     by_id = {m.id: m for m in (group.members if group else [])}
 
@@ -154,6 +156,15 @@ def get_fortune_view(group_id: str, d: date | None = None):
     )
 
 
+@app.get("/groups/{group_id}/view", response_model=GroupFortuneView)
+def get_fortune_view(group_id: str, d: date | None = None):
+    """프론트(화면) 전용: 캐시된 운세 + 그룹 멤버(이름·오행)를 조인해 바로 그릴 수 있는 형태로 반환."""
+    view = _compose_view(group_id, d or _today_kst())
+    if view is None:
+        raise HTTPException(404, "아직 생성되지 않았습니다(배치 대기 또는 비활성 그룹).")
+    return view
+
+
 @app.get("/users/{user_id}/groups", response_model=list[GroupSummary])
 def my_groups(user_id: str):
     """그룹 전환 스위처용: 사용자가 속한 그룹 목록."""
@@ -161,6 +172,74 @@ def my_groups(user_id: str):
         GroupSummary(id=g.id, name=g.name, gen_time=g.gen_time.strftime("%H:%M"))
         for g in store.list_groups_for_user(user_id)
     ]
+
+
+# ===== 카카오 공유 (SSR 카드 + OG 랜딩) =====
+def _card_from_view(v: GroupFortuneView) -> dict:
+    return {
+        "group_name": v.group_name,
+        "date_label": v.date_label,
+        "day_element": v.day_element,
+        "group_comment": v.group_comment,
+        "members": [{"name": m.name, "element": m.element, "score": m.score} for m in v.members],
+    }
+
+
+@app.get("/share/config")
+def share_config():
+    """프론트가 카카오 키/앱URL을 코드에 박지 않고 받아가도록(키는 .env에서만 관리)."""
+    return {"kakao_js_key": settings.kakao_js_key, "app_url": settings.app_url}
+
+
+@app.get("/share/{group_id}/card.png")
+def share_card(group_id: str, d: date | None = None):
+    """카카오 피드 imageUrl 용 공유 카드(PNG, 800x400). 운세 없으면 샘플 카드로 폴백."""
+    view = _compose_view(group_id, d or _today_kst())
+    card = _card_from_view(view) if view else SAMPLE_CARD
+    png = render_card_png(card)
+    return Response(content=png, media_type="image/png",
+                    headers={"Cache-Control": "public, max-age=300"})
+
+
+@app.get("/share/{group_id}", response_class=HTMLResponse)
+def share_landing(group_id: str, request: Request, d: date | None = None):
+    """공유 링크가 향하는 OG 랜딩(카카오/단톡방 미리보기 + '앱에서 열기')."""
+    view = _compose_view(group_id, d or _today_kst())
+    card = _card_from_view(view) if view else SAMPLE_CARD
+    base = str(request.base_url).rstrip("/")
+    img = f"{base}/share/{group_id}/card.png" + (f"?d={d.isoformat()}" if d else "")
+    page = f"{base}/share/{group_id}"
+    app_link = settings.app_url + (("&" if "?" in settings.app_url else "?") + f"group={group_id}")
+    title = f"{card['group_name']} · 오늘의 그룹 케미"
+    desc = card.get("group_comment") or card.get("date_label", "")
+    e = html.escape
+    body = f"""<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>{e(title)}</title>
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="{e(title)}"/>
+<meta property="og:description" content="{e(desc)}"/>
+<meta property="og:image" content="{e(img)}"/>
+<meta property="og:url" content="{e(page)}"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<style>
+  body{{margin:0;background:#0d0e12;color:#f4f5f7;font-family:-apple-system,"Malgun Gothic",sans-serif;
+    display:flex;flex-direction:column;align-items:center;gap:18px;padding:28px;text-align:center}}
+  img{{width:min(440px,92vw);border-radius:18px;border:1px solid #2a2e38}}
+  h1{{font-size:19px;margin:6px 0 0}}
+  p{{color:#8d93a1;font-size:14px;margin:0 18px;line-height:1.5}}
+  a.btn{{margin-top:6px;background:#c6ff3d;color:#0d0e12;font-weight:800;text-decoration:none;
+    padding:15px 26px;border-radius:16px;font-size:16px}}
+  .brand{{color:#c6ff3d;font-weight:800;font-size:13px;letter-spacing:.3px}}
+</style></head><body>
+<div class="brand">케미사주</div>
+<img src="{e(img)}" alt="{e(title)} 공유 카드"/>
+<h1>{e(card['group_name'])}</h1>
+<p>{e(desc)}</p>
+<a class="btn" href="{e(app_link)}">앱에서 우리 그룹 운세 보기 →</a>
+</body></html>"""
+    return HTMLResponse(body)
 
 
 @app.post("/admin/generate", response_model=GroupFortune)

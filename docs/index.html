@@ -210,6 +210,7 @@ const cfg = k => QS.get(k) || localStorage.getItem("chemisaju_" + k) || "";
 const API = cfg("api").replace(/\/+$/, "");
 let GROUP_ID = cfg("group");
 let USER_ID  = cfg("user");
+let KAKAO_KEY = cfg("kakao");   // 카카오 JS 키(?kakao= / localStorage / API의 /share/config)
 const LIVE = !!(API && GROUP_ID);
 
 const PALETTE = {목:"#34e3a0", 화:"#ff7a8a", 토:"#ffc24b", 금:"#aab2c0", 수:"#54a0ff"};
@@ -430,7 +431,63 @@ function toastMsg(msg){
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>t.classList.remove("show"),1800);
 }
-function share(){ toastMsg("공유 카드가 단톡방으로 전송돼요 (목업)"); }
+// ===== 카카오 공유 (SDK → Web Share API → 클립보드 폴백) =====
+// 카드 이미지/링크는 백엔드(/share/...)에서 SSR. API 미설정 시 썸네일/현재 URL로 폴백.
+function shareUrls(){
+  const root = location.origin + location.pathname.replace(/index\.html$/, "");
+  const img  = (API && GROUP_ID) ? `${API}/share/${encodeURIComponent(GROUP_ID)}/card.png` : root + "thumbnail.html";
+  const page = (API && GROUP_ID) ? `${API}/share/${encodeURIComponent(GROUP_ID)}` : location.href;
+  const app  = root + (GROUP_ID ? `?group=${encodeURIComponent(GROUP_ID)}` : "");
+  return { img, page, app };
+}
+function loadKakao(){
+  return new Promise((res, rej)=>{
+    if(window.Kakao) return res();
+    const s=document.createElement("script");
+    s.src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"; s.crossOrigin="anonymous";
+    s.onload=()=>res(); s.onerror=()=>rej(new Error("kakao sdk load fail"));
+    document.head.appendChild(s);
+  });
+}
+async function ensureKakaoKey(){
+  if(!KAKAO_KEY && API){
+    try{ const c=await (await fetch(API+"/share/config")).json(); if(c.kakao_js_key) KAKAO_KEY=c.kakao_js_key; }
+    catch(e){ /* noop */ }
+  }
+  return KAKAO_KEY;
+}
+async function kakaoShare(){
+  try{
+    await ensureKakaoKey();
+    if(!KAKAO_KEY) throw new Error("no kakao key");
+    await loadKakao();
+    if(!Kakao.isInitialized()) Kakao.init(KAKAO_KEY);
+    const u=shareUrls();
+    Kakao.Share.sendDefault({
+      objectType:"feed",
+      content:{ title:"오늘의 그룹 케미 · 케미사주",
+        description:(DATA && DATA.groupComment) || "우리 그룹의 오늘 운세와 케미를 확인해보세요!",
+        imageUrl:u.img, link:{ mobileWebUrl:u.page, webUrl:u.page } },
+      buttons:[{ title:"운세 보러가기", link:{ mobileWebUrl:u.app, webUrl:u.app } }],
+    });
+    return true;
+  }catch(e){ console.warn("kakao share fail:", e); return false; }
+}
+async function webShare(){
+  if(!navigator.share) return false;
+  try{ await navigator.share({ title:"케미사주", text:"우리 그룹 오늘의 케미 운세", url:shareUrls().page }); return true; }
+  catch(e){ return false; }   // 사용자가 취소해도 false
+}
+async function copyShare(){
+  try{ await navigator.clipboard.writeText(shareUrls().page); return true; }catch(e){ return false; }
+}
+async function share(){
+  toastMsg("공유 준비 중…");
+  if(await kakaoShare()){ toastMsg("카카오톡 공유를 열었어요"); return; }
+  if(await webShare()){ return; }
+  if(await copyShare()){ toastMsg("공유 링크를 복사했어요 (카카오 직접 공유 불가)"); return; }
+  toastMsg("공유를 사용할 수 없어요 — 링크를 직접 복사해주세요");
+}
 
 function closeSheets(){
   ["scrim","sheet","gsheet"].forEach(id=>document.getElementById(id).classList.remove("show"));

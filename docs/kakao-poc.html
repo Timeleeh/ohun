@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>케미사주 — 카카오 공유 PoC (토스 웹뷰 검증)</title>
+<style>
+  :root{--bg:#0d0e12;--card:#181a20;--ink:#f4f5f7;--sub:#8d93a1;--acc:#c6ff3d;--line:#2a2e38;
+    --ok:#34e3a0;--no:#ff7a8a;--kakao:#fee500}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);max-width:480px;margin:0 auto;padding:18px;
+    font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+  h1{font-size:18px;margin:6px 0 2px}
+  .sub{color:var(--sub);font-size:12.5px;margin-bottom:14px;line-height:1.5}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin:10px 0}
+  .card h2{font-size:12px;color:var(--sub);margin:0 0 9px;letter-spacing:.4px;text-transform:uppercase}
+  .row{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:4px 0;border-bottom:1px dashed #23262e}
+  .row:last-child{border-bottom:none}
+  .row .v{font-weight:700;text-align:right;word-break:break-all}
+  .ok{color:var(--ok)} .no{color:var(--no)} .warn{color:#ffc24b}
+  button{width:100%;border:none;border-radius:13px;padding:15px;font-size:15px;font-weight:800;
+    cursor:pointer;margin-top:9px}
+  .kakao{background:var(--kakao);color:#191600}
+  .ghost{background:#23262e;color:var(--ink);border:1px solid var(--line)}
+  .acc{background:var(--acc);color:#0d0e12}
+  pre{background:#06070a;border:1px solid var(--line);border-radius:12px;padding:11px;font-size:11.5px;
+    line-height:1.5;white-space:pre-wrap;word-break:break-all;max-height:280px;overflow:auto;margin:6px 0 0}
+  input{width:100%;background:#06070a;border:1px solid var(--line);border-radius:10px;color:var(--ink);
+    padding:11px;font-size:12.5px;margin-top:6px}
+  label{font-size:11px;color:var(--sub);font-weight:700}
+</style>
+</head>
+<body>
+<h1>카카오 공유 PoC</h1>
+<div class="sub">토스 인앱 웹뷰 안에서 <b>Kakao.Share.sendDefault</b>가 실제로 동작하는지 검증하는 페이지예요.
+  버튼을 눌러 결과를 아래 로그로 확인하세요. (디바이스에서 devtools 없이 진단)</div>
+
+<div class="card">
+  <h2>환경 진단</h2>
+  <div class="row"><span>온라인</span><span class="v" id="d-online">—</span></div>
+  <div class="row"><span>토스 웹뷰 추정</span><span class="v" id="d-toss">—</span></div>
+  <div class="row"><span>Kakao SDK 로드</span><span class="v" id="d-sdk">—</span></div>
+  <div class="row"><span>Kakao.init</span><span class="v" id="d-init">—</span></div>
+  <div class="row"><span>Web Share API</span><span class="v" id="d-webshare">—</span></div>
+  <div class="row"><span>UA</span><span class="v" id="d-ua" style="font-size:10.5px;font-weight:500">—</span></div>
+</div>
+
+<div class="card">
+  <h2>설정 (URL ?kakao=&api=&group= 또는 입력)</h2>
+  <label>Kakao JavaScript 키</label>
+  <input id="i-kakao" placeholder="카카오 개발자센터 JS 키" />
+  <label>API 베이스 (공유 카드/링크 출처, 공개 https)</label>
+  <input id="i-api" placeholder="https://your-backend" />
+  <label>group_id</label>
+  <input id="i-group" placeholder="그룹 ID" />
+  <button class="ghost" onclick="applyConfig()">설정 적용 / SDK 다시 로드</button>
+</div>
+
+<button class="kakao" onclick="testKakao()">① 카카오 SDK 공유 (sendDefault)</button>
+<button class="acc" onclick="testWebShare()">② Web Share API 공유 (대체)</button>
+<button class="ghost" onclick="testCopy()">③ 링크 복사 (최후 대체)</button>
+
+<div class="card" style="margin-top:14px">
+  <h2>로그</h2>
+  <pre id="log"></pre>
+</div>
+
+<script>
+const QS = new URLSearchParams(location.search);
+const get = k => QS.get(k) || localStorage.getItem("chemisaju_" + k) || "";
+let KAKAO_KEY = get("kakao");
+let API = get("api").replace(/\/+$/, "");
+let GROUP = get("group");
+let APP_URL = "https://timeleeh.github.io/ohun/";
+
+const $ = id => document.getElementById(id);
+function log(msg, cls){
+  const t = new Date().toISOString().slice(11,19);
+  const line = `[${t}] ${msg}`;
+  const pre = $("log");
+  pre.innerHTML += (pre.innerHTML ? "\n" : "") + (cls ? `<span class="${cls}">${line}</span>` : line);
+  pre.scrollTop = pre.scrollHeight;
+}
+function set(id, txt, cls){ const el=$(id); el.textContent=txt; el.className="v"+(cls?" "+cls:""); }
+
+// ── 환경 진단 ──
+function looksLikeToss(){
+  const ua = navigator.userAgent || "";
+  const hints = [/toss/i.test(ua), !!window.TossAppBridge, !!window.__TOSS__,
+                 !!(window.appsInToss || window.AppsInToss)];
+  return { guess: hints.some(Boolean), ua };
+}
+function diagnose(){
+  set("d-online", navigator.onLine ? "예" : "아니오", navigator.onLine ? "ok" : "no");
+  const t = looksLikeToss();
+  set("d-toss", t.guess ? "예(추정)" : "아니오/불명", t.guess ? "ok" : "warn");
+  set("d-ua", t.ua);
+  set("d-webshare", navigator.share ? "지원" : "미지원", navigator.share ? "ok" : "no");
+  set("d-sdk", window.Kakao ? "로드됨" : "미로드", window.Kakao ? "ok" : "no");
+  const inited = !!(window.Kakao && Kakao.isInitialized && Kakao.isInitialized());
+  set("d-init", inited ? "초기화됨" : "안됨", inited ? "ok" : "warn");
+}
+
+// ── 카카오 SDK 로드 + init ──
+function loadKakaoSDK(){
+  return new Promise((resolve, reject) => {
+    if(window.Kakao){ return resolve("이미 로드됨"); }
+    const s = document.createElement("script");
+    s.src = "https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js";
+    s.crossOrigin = "anonymous";
+    s.onload = () => resolve("SDK onload");
+    s.onerror = () => reject(new Error("SDK 스크립트 로드 실패(차단/네트워크) — 토스 웹뷰 외부 스크립트 정책 의심"));
+    document.head.appendChild(s);
+  });
+}
+async function ensureKakao(){
+  if(!KAKAO_KEY) throw new Error("Kakao JS 키가 없습니다(설정에 입력)");
+  await loadKakaoSDK();
+  if(!window.Kakao) throw new Error("window.Kakao 없음(로드 실패)");
+  if(!Kakao.isInitialized()){ Kakao.init(KAKAO_KEY); log("Kakao.init 호출", "ok"); }
+  diagnose();
+}
+
+function shareUrls(){
+  const img  = API && GROUP ? `${API}/share/${encodeURIComponent(GROUP)}/card.png` : APP_URL + "thumbnail.html";
+  const page = API && GROUP ? `${API}/share/${encodeURIComponent(GROUP)}` : APP_URL;
+  const app  = APP_URL + (GROUP ? `?group=${encodeURIComponent(GROUP)}` : "");
+  return { img, page, app };
+}
+
+// ── ① 카카오 ──
+async function testKakao(){
+  log("① 카카오 공유 시작…");
+  try{
+    await ensureKakao();
+    const u = shareUrls();
+    log("imageUrl=" + u.img);
+    log("link=" + u.page);
+    Kakao.Share.sendDefault({
+      objectType: "feed",
+      content: {
+        title: "오늘의 그룹 케미 · 케미사주",
+        description: "우리 그룹의 오늘 운세와 케미를 확인해보세요!",
+        imageUrl: u.img,
+        link: { mobileWebUrl: u.page, webUrl: u.page },
+      },
+      buttons: [{ title: "운세 보러가기", link: { mobileWebUrl: u.app, webUrl: u.app } }],
+    });
+    log("sendDefault 호출 성공(카카오 시트가 떠야 정상)", "ok");
+  }catch(e){
+    log("실패: " + (e && e.message || e), "no");
+    log("→ 대체 수단(②/③)으로 자동 진행 권장", "warn");
+  }
+}
+
+// ── ② Web Share API ──
+async function testWebShare(){
+  log("② Web Share API 시작…");
+  if(!navigator.share){ log("이 웹뷰는 navigator.share 미지원", "no"); return; }
+  const u = shareUrls();
+  try{
+    await navigator.share({ title: "케미사주", text: "우리 그룹 오늘의 케미 운세", url: u.page });
+    log("navigator.share 성공", "ok");
+  }catch(e){
+    log("취소/실패: " + (e && e.message || e), "warn");
+  }
+}
+
+// ── ③ 클립보드 ──
+async function testCopy(){
+  const u = shareUrls();
+  try{
+    await navigator.clipboard.writeText(u.page);
+    log("③ 링크 복사됨: " + u.page, "ok");
+  }catch(e){
+    log("clipboard 실패: " + (e && e.message || e) + " (수동 복사 필요)", "no");
+  }
+}
+
+function applyConfig(){
+  KAKAO_KEY = $("i-kakao").value.trim() || KAKAO_KEY;
+  API = ($("i-api").value.trim() || API).replace(/\/+$/, "");
+  GROUP = $("i-group").value.trim() || GROUP;
+  if(KAKAO_KEY) localStorage.setItem("chemisaju_kakao", KAKAO_KEY);
+  if(API) localStorage.setItem("chemisaju_api", API);
+  if(GROUP) localStorage.setItem("chemisaju_group", GROUP);
+  log("설정 적용: api=" + (API||"-") + " group=" + (GROUP||"-") + " kakao=" + (KAKAO_KEY?"●":"-"));
+  ensureKakao().catch(e => log("init 보류: " + e.message, "warn"));
+}
+
+// 부팅
+$("i-kakao").value = KAKAO_KEY;
+$("i-api").value = API;
+$("i-group").value = GROUP;
+diagnose();
+window.addEventListener("online", diagnose);
+window.addEventListener("offline", diagnose);
+// API 설정돼 있으면 /share/config 에서 카카오 키 보강 시도
+(async () => {
+  if(API && !KAKAO_KEY){
+    try{
+      const c = await (await fetch(API + "/share/config")).json();
+      if(c.kakao_js_key){ KAKAO_KEY = c.kakao_js_key; $("i-kakao").value = KAKAO_KEY; log("/share/config 에서 카카오 키 수신", "ok"); }
+      if(c.app_url) APP_URL = c.app_url;
+    }catch(e){ log("/share/config 조회 실패: " + e.message, "warn"); }
+  }
+  if(KAKAO_KEY){ ensureKakao().catch(e => log("초기 init 보류: " + e.message, "warn")); }
+  else { log("카카오 키 미설정 — 설정란에 입력 후 '설정 적용'", "warn"); }
+})();
+</script>
+</body>
+</html>

@@ -105,10 +105,38 @@ python -m venv .venv
   # 브라우저에서 docs/index.html?api=http://127.0.0.1:8000&group=<id>&user=<id>
   ```
 
+## 카카오 공유 — SSR 카드 + 토스 웹뷰 PoC
+
+플랫폼 최우선 리스크(토스 인앱 웹뷰에서 카카오 공유가 되는가)를 검증하는 구성.
+
+**서버(SSR 카드, `app/share.py`)** — 카카오 피드 `imageUrl`은 공개 URL의 래스터여야 하므로 PNG를 즉석 렌더:
+- `GET /share/{group_id}/card.png` — 800×400 공유 카드(다크+라임, 오행색 노드). 운세 없으면 샘플 카드로 폴백 → 이미지가 항상 나옴
+- `GET /share/{group_id}` — 단톡방/카카오 미리보기용 **OG 랜딩**(og:image=카드, og:title/description=그룹·한줄평) + '앱에서 열기'
+- `GET /share/config` — 프론트가 카카오 키/앱URL을 코드에 박지 않고 받아감(키는 `.env`의 `OHN_KAKAO_JS_KEY`에서만)
+- 폰트: 한글 TTF 필요(서버가 글자를 그림). 기본 Windows malgun → Linux Noto/Nanum 자동 탐색, `OHN_CARD_FONT`로 강제
+
+**프론트(공유 호출)**:
+- `docs/index.html` "💬 카톡 공유" → **Kakao SDK `sendDefault` → Web Share API → 클립보드** 순으로 자동 폴백
+- `docs/kakao-poc.html` — **토스 웹뷰 진단 전용 페이지**(devtools 없이 on-device 검증): 환경 진단(토스 추정/ SDK 로드/ init/ Web Share 지원) + 3가지 공유 시도 + 실시간 로그
+
+**on-device 테스트 절차(토스 미니앱 웹뷰)**:
+1. 백엔드를 공개 https에 띄우고(카카오 서버가 카드 URL을 가져갈 수 있어야 함), `OHN_KAKAO_JS_KEY` 설정
+2. 카카오 개발자센터: 플랫폼 Web에 도메인 등록 + JavaScript 키 발급
+3. 토스 미니앱 안에서 `kakao-poc.html?api=<백엔드>&group=<id>` 열기
+4. ① 카카오 → 시트 뜨면 ✅ / 실패 로그 확인. 안 되면 ②/③로 폴백 동작 확인
+- 예상 리스크: 인앱 웹뷰가 외부 스크립트(kakao sdk) 차단 / `sendDefault`가 새 창 못 띄움 → 이때 Web Share/클립보드 폴백으로 흡수
+
+```bash
+# 로컬 e2e (mock LLM, 데모 키)
+OHN_PROVIDER=mock OHN_KAKAO_JS_KEY=<JS키> .venv/Scripts/python -m uvicorn app.main:app --port 8000
+# 카드: http://127.0.0.1:8000/share/<group_id>/card.png  /  랜딩: /share/<group_id>
+```
+
 ## 다음 단계 (미구현)
 
 - ~~Supabase 연동~~ ✅ (스키마 + SupabaseStore)
 - ~~프론트(목업) → 실제 API 연결~~ ✅ (`/view` · `/users/{id}/groups` + CORS + 폴백)
+- ~~카카오 공유 카드(SSR) + 토스 웹뷰 PoC~~ ✅ (카드/OG/폴백 구현 — 실 동작은 on-device 확인 필요)
 - 실제 LLM 출력 품질 확인 (Gemini/Anthropic 키 + 크레딧)
 - 토스 미니앱 인증/사용자정보 연동 어댑터(MockAuth) → 실호출(사전계약·키 발급 대기)
-- 카카오 공유 카드 이미지 렌더링(SSR) + 토스 웹뷰 PoC
+- 카카오 JS 키 발급 + 도메인 등록 후 **토스 웹뷰 on-device 실검증**

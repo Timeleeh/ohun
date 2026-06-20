@@ -8,3 +8,5 @@ anthropic>=0.111
 google-genai>=1.0
 # DB (운영용; 없으면 인메모리 store로 동작)
 supabase>=2.0
+# 공유 카드 SSR(PNG 렌더링)
+Pillow>=10.0
