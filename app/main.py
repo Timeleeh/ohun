@@ -67,7 +67,7 @@ def login(req: LoginReq):
 
 
 @app.post("/auth/toss/disconnect")
-def toss_disconnect(request: Request, body: dict = {}):
+async def toss_disconnect(request: Request):
     """토스 연결 끊기 콜백. 사용자가 토스앱에서 서비스 연결 해제 시 호출됨."""
     auth_header = request.headers.get("Authorization", "")
     expected = "Basic " + base64.b64encode(
