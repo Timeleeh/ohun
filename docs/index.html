@@ -482,10 +482,8 @@ async function copyShare(){
   try{ await navigator.clipboard.writeText(shareUrls().page); return true; }catch(e){ return false; }
 }
 async function share(){
-  toastMsg("공유 준비 중…");
-  if(await kakaoShare()){ toastMsg("카카오톡 공유를 열었어요"); return; }
   if(await webShare()){ return; }
-  if(await copyShare()){ toastMsg("공유 링크를 복사했어요 (카카오 직접 공유 불가)"); return; }
+  if(await copyShare()){ toastMsg("공유 링크를 복사했어요"); return; }
   toastMsg("공유를 사용할 수 없어요 — 링크를 직접 복사해주세요");
 }
 
