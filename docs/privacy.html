@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>개인정보처리방침 — 케미사주</title>
+<style>
+  :root { --acc: #c6ff3d; --bg: #0d0e12; --surface: #1a1c23; --border: #2a2e38; --text: #f4f5f7; --muted: #8d93a1; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; font-size: 15px; line-height: 1.7; padding: 0 0 60px; }
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 24px; display: flex; align-items: center; gap: 10px; }
+  .brand { color: var(--acc); font-weight: 800; font-size: 16px; }
+  .page-title { color: var(--muted); font-size: 14px; }
+  main { max-width: 680px; margin: 0 auto; padding: 32px 24px; }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 32px; }
+  h2 { font-size: 17px; font-weight: 700; color: var(--acc); margin: 36px 0 12px; }
+  h2:first-of-type { margin-top: 0; }
+  p { color: #c8cdd6; margin-bottom: 10px; }
+  ul { color: #c8cdd6; padding-left: 20px; margin-bottom: 10px; }
+  li { margin-bottom: 6px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: var(--surface); color: var(--acc); padding: 10px 12px; text-align: left; border: 1px solid var(--border); font-weight: 600; }
+  td { padding: 10px 12px; border: 1px solid var(--border); color: #c8cdd6; vertical-align: top; }
+  .highlight { background: var(--surface); border-left: 3px solid var(--acc); padding: 14px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; color: #c8cdd6; font-size: 14px; }
+  a { color: var(--acc); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">케미사주</span>
+  <span class="page-title">/ 개인정보처리방침</span>
+</header>
+<main>
+  <p class="meta">시행일: 2026년 6월 21일 · 최종 수정: 2026년 6월 21일</p>
+
+  <h2>1. 수집하는 개인정보 항목</h2>
+  <p>케미사주(이하 "서비스")는 토스 로그인을 통해 아래 항목만 수집합니다.</p>
+  <table>
+    <tr><th>항목</th><th>수집 방법</th><th>필수 여부</th></tr>
+    <tr><td>이름(실명)</td><td>토스 로그인 동의</td><td>필수</td></tr>
+    <tr><td>생년월일(양력, yyyyMMdd)</td><td>토스 로그인 동의</td><td>필수</td></tr>
+    <tr><td>토스 사용자 식별자(userKey)</td><td>토스 로그인 자동 제공</td><td>필수</td></tr>
+  </table>
+  <div class="highlight">비밀번호, 이메일, 전화번호, 결제 정보는 수집하지 않습니다.</div>
+
+  <h2>2. 수집 및 이용 목적</h2>
+  <ul>
+    <li>사주(오행) 기반 개인 운세 및 그룹 케미 산출</li>
+    <li>그룹 멤버 식별 및 운세 화면에 이름 표시</li>
+    <li>그룹 생성·초대·합류 기능 제공</li>
+    <li>서비스 부정 이용 방지 및 운영</li>
+  </ul>
+
+  <h2>3. 보유 및 이용 기간</h2>
+  <table>
+    <tr><th>항목</th><th>보유 기간</th></tr>
+    <tr><td>이름, 생년월일, 사용자 식별자</td><td>서비스 탈퇴 요청 시 즉시 삭제</td></tr>
+    <tr><td>그룹 운세 데이터</td><td>생성일로부터 90일 후 자동 삭제</td></tr>
+  </table>
+  <p>단, 관계 법령에 따라 보존이 필요한 경우 해당 기간 동안 보관합니다.</p>
+
+  <h2>4. 제3자 제공</h2>
+  <p>수집한 개인정보를 외부에 제공하지 않습니다.</p>
+
+  <h2>5. 처리 위탁</h2>
+  <table>
+    <tr><th>수탁 업체</th><th>위탁 업무</th></tr>
+    <tr><td>Google LLC (Gemini API)</td><td>운세 문장 생성 (비식별화된 오행 정보만 전달, 이름·생년월일 미전달)</td></tr>
+    <tr><td>Supabase Inc.</td><td>사용자·그룹·운세 데이터 저장 (암호화 전송·저장)</td></tr>
+    <tr><td>Render Inc.</td><td>API 서버 호스팅</td></tr>
+  </table>
+
+  <h2>6. 이용자의 권리</h2>
+  <p>이용자는 언제든지 아래 권리를 행사할 수 있습니다.</p>
+  <ul>
+    <li>개인정보 열람·정정·삭제 요청</li>
+    <li>개인정보 처리 정지 요청</li>
+    <li>서비스 탈퇴(데이터 즉시 삭제)</li>
+  </ul>
+  <p>요청은 아래 개인정보 보호책임자 이메일로 연락 주세요. 5영업일 내 처리합니다.</p>
+
+  <h2>7. 개인정보 보호책임자</h2>
+  <table>
+    <tr><th>항목</th><th>내용</th></tr>
+    <tr><td>성명</td><td>이재훈</td></tr>
+    <tr><td>이메일</td><td><a href="mailto:ljhun0424@gmail.com">ljhun0424@gmail.com</a></td></tr>
+  </table>
+
+  <h2>8. 개인정보 파기 절차 및 방법</h2>
+  <ul>
+    <li>전자적 파일: 복구 불가능한 방법으로 영구 삭제</li>
+    <li>종이 문서: 해당 없음(종이 수집 없음)</li>
+  </ul>
+
+  <h2>9. 방침 변경</h2>
+  <p>본 방침이 변경될 경우 서비스 내 공지 또는 이 페이지를 통해 사전 안내합니다.</p>
+</main>
+</body>
+</html>
