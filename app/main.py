@@ -6,6 +6,7 @@ from datetime import date, datetime, time, timezone, timedelta
 
 import html
 
+import base64
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -63,6 +64,18 @@ def login(req: LoginReq):
     u = auth.login(req.authorization_code, req.referrer or settings.toss_referrer)
     m = store.upsert_user(u.toss_user_id, u.name, u.birth_date)
     return {"user_id": m.id, "name": m.name, "birth_date": m.birth_date.isoformat()}
+
+
+@app.post("/auth/toss/disconnect")
+def toss_disconnect(request: Request, body: dict = {}):
+    """토스 연결 끊기 콜백. 사용자가 토스앱에서 서비스 연결 해제 시 호출됨."""
+    auth_header = request.headers.get("Authorization", "")
+    expected = "Basic " + base64.b64encode(
+        f"chemisaju:{settings.toss_disconnect_secret}".encode()
+    ).decode()
+    if auth_header != expected:
+        raise HTTPException(401, "Unauthorized")
+    return {"ok": True}
 
 
 @app.post("/groups")

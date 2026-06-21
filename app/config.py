@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     toss_key_path: str = ""         # mTLS 개인키(.pem)
     toss_decrypt_key: str = ""      # PII 복호화 키(base64, 콘솔 발급)
     toss_referrer: str = "DEFAULT"  # DEFAULT | SANDBOX
+    toss_disconnect_secret: str = "ohn-disconnect-2026"  # 연결 끊기 콜백 Basic Auth 패스워드
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
