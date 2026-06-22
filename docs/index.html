@@ -550,12 +550,16 @@ async function createGroup(){
     }catch(e){ console.warn(e); toastMsg("그룹 생성 실패 (API)"); }
     return;
   }
-  // 목업(오프라인)
-  if(!GROUPS.some(x=>x.id===name)) GROUPS.unshift({id:name,name});
+  // 오프라인(USER_ID 없음) — 임시 GROUP_ID로 초대 링크 표시
+  const mockId = "g_" + Math.random().toString(36).slice(2, 9);
+  GROUP_ID = mockId;
+  localStorage.setItem("chemisaju_group", mockId);
+  if(!GROUPS.some(x=>x.id===mockId)) GROUPS.unshift({id:mockId, name});
   document.getElementById("gname").textContent=name;
+  render(SAMPLE);
   showHome();
   toastMsg(`'${name}' 생성! 매일 ${time}에 운세가 와요`);
-  setTimeout(openInvite,650);   // 만들면 바로 친구 초대 유도
+  setTimeout(openInvite,650);
 }
 
 // ===== 초대 공유 =====
