@@ -204,7 +204,8 @@
 <div class="toast" id="toast"></div>
 <footer>케미사주</footer>
 
-<script>
+<script type="module">
+import { appLogin, getTossShareLink, share as _tossShare } from '@apps-in-toss/web-framework';
 // ===== 설정: 실제 API 연결 (미설정 시 샘플 데이터로 동작) =====
 // 사용법: ?api=<백엔드주소>&group=<group_id>[&user=<user_id>]
 //   또는 localStorage 에 chemisaju_api / chemisaju_group / chemisaju_user 저장
@@ -487,6 +488,12 @@ async function copyShare(){
 }
 async function share(){
   if(!GROUP_ID){ toastMsg("그룹을 먼저 만들어야 공유할 수 있어요"); return; }
+  try{
+    const cardUrl = `${API}/share/${encodeURIComponent(GROUP_ID)}/card.png`;
+    const tossLink = await getTossShareLink(`intoss://chemisaju?group=${encodeURIComponent(GROUP_ID)}`, cardUrl);
+    await _tossShare({ message: tossLink });
+    return;
+  }catch(e){}
   if(await webShare()){ return; }
   if(await copyShare()){ toastMsg("공유 링크를 복사했어요"); return; }
   toastMsg("공유를 사용할 수 없어요 — 링크를 직접 복사해주세요");
@@ -495,9 +502,13 @@ async function share(){
 function closeSheets(){
   ["scrim","sheet","gsheet"].forEach(id=>document.getElementById(id).classList.remove("show"));
 }
-function openInvite(){
+async function openInvite(){
   closeSheets();
-  const link = GROUP_ID ? `${API}/share/${encodeURIComponent(GROUP_ID)}` : "";
+  let link = GROUP_ID ? `${API}/share/${encodeURIComponent(GROUP_ID)}` : "";
+  if(GROUP_ID){
+    try{ link = await getTossShareLink(`intoss://chemisaju?group=${encodeURIComponent(GROUP_ID)}`); }
+    catch(e){}
+  }
   document.getElementById("invlink").value = link;
   document.getElementById("scrim").classList.add("show");
   document.getElementById("sheet").classList.add("show");
@@ -519,7 +530,7 @@ function renderGroups(){
     (g.name===cur?'<span class="mini">현재</span>':'<span class="mini">전환 ›</span>')+'</div>').join("")+'</div>';
 }
 async function openGroups(){
-  if(LIVE && USER_ID){
+  if(API && USER_ID){
     try{ const gs = await apiGet(`/users/${encodeURIComponent(USER_ID)}/groups`);
          if(gs.length) GROUPS = gs.map(g=>({id:g.id, name:g.name})); }
     catch(e){ console.warn(e); }
@@ -530,7 +541,7 @@ async function openGroups(){
 }
 function pickGroup(id, name){
   document.getElementById("gname").textContent=name; closeSheets();
-  if(LIVE){ GROUP_ID=id; localStorage.setItem("chemisaju_group", id); loadGroup(); }
+  if(API){ GROUP_ID=id; localStorage.setItem("chemisaju_group", id); loadGroup(); }
   else { toastMsg(name+" 운세를 불러왔어요"); }
 }
 
@@ -543,7 +554,7 @@ function goCreate(){ closeSheets(); document.getElementById("home").hidden=true;
 async function createGroup(){
   const name=(document.getElementById("gn").value||"").trim()||"새 그룹";
   const time=document.getElementById("gt").value||"08:00";
-  if(LIVE && USER_ID){
+  if(API && USER_ID){
     try{
       const g = await apiPost("/groups", {name, owner_id:USER_ID, gen_time:time});
       GROUP_ID = g.group_id; localStorage.setItem("chemisaju_group", GROUP_ID);
@@ -569,12 +580,18 @@ async function createGroup(){
 // ===== 초대 공유 =====
 async function shareInvite(){
   const link = document.getElementById("invlink").value;
-  if(navigator.share){
+  if(link){
+    try{ await _tossShare({ message: `케미사주에 초대합니다! ${link}` }); closeInvite(); return; }
+    catch(e){}
+  }
+  if(link && navigator.share){
     try{ await navigator.share({title:"케미사주 초대", text:"사주로 우리 그룹 케미 확인해봐요!", url:link}); }
     catch(e){}
-  } else {
+  } else if(link){
     await navigator.clipboard.writeText(link).catch(()=>{});
     toastMsg("초대 링크가 복사됐어요");
+  } else {
+    toastMsg("그룹을 먼저 만들어야 해요");
   }
   closeInvite();
 }
@@ -592,9 +609,25 @@ async function loadGroup(){
   }
 }
 async function boot(){
-  if(LIVE) await loadGroup();
+  if(!USER_ID){
+    try{
+      const { authorizationCode, referrer } = await appLogin();
+      const res = await apiPost("/auth/login", { authorization_code: authorizationCode, referrer });
+      USER_ID = res.user_id;
+      localStorage.setItem("chemisaju_user", USER_ID);
+    }catch(e){
+      console.info("토스 로그인 skip:", e?.code || e?.message);
+    }
+  }
+  if(API && GROUP_ID) await loadGroup();
   else goCreate();
 }
+
+// onclick 핸들러용 전역 노출 (module scope → window)
+Object.assign(window, {
+  openGroups, toastMsg, openInvite, share, shareInvite, copyLink,
+  goCreate, showHome, createGroup, closeInvite, closeSheets, pickGroup
+});
 boot();
 </script>
 </body>
