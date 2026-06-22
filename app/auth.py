@@ -86,7 +86,7 @@ class TossAuth:
 
 
 def get_auth():
-    """토스 크리덴셜(client_id + mTLS 인증서) 있으면 TossAuth, 없으면 MockAuth."""
-    if settings.toss_client_id and settings.toss_cert_path and settings.toss_key_path:
+    """mTLS 인증서 + 복호화 키 있으면 TossAuth, 없으면 MockAuth."""
+    if settings.toss_cert_path and settings.toss_key_path and settings.toss_decrypt_key:
         return TossAuth()
     return MockAuth()
