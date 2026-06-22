@@ -207,7 +207,7 @@
 //   또는 localStorage 에 chemisaju_api / chemisaju_group / chemisaju_user 저장
 const QS = new URLSearchParams(location.search);
 const cfg = k => QS.get(k) || localStorage.getItem("chemisaju_" + k) || "";
-const API = cfg("api").replace(/\/+$/, "");
+const API = (cfg("api") || "https://chemisaju-api.onrender.com").replace(/\/+$/, "");
 let GROUP_ID = cfg("group");
 let USER_ID  = cfg("user");
 let KAKAO_KEY = cfg("kakao");   // 카카오 JS 키(?kakao= / localStorage / API의 /share/config)
