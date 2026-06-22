@@ -44,8 +44,19 @@ class TossAuth:
     ME_URL = "https://apps-in-toss-api.toss.im/api-partner/v1/apps-in-toss/user/oauth2/login-me"
 
     def __init__(self):
-        import base64
-        self._cert = (settings.toss_cert_path, settings.toss_key_path)  # mTLS
+        import base64, tempfile, os
+        # 파일 경로 우선, 없으면 base64 환경변수에서 임시파일로 생성(Render 등)
+        cert_path = settings.toss_cert_path
+        key_path = settings.toss_key_path
+        if not cert_path and settings.toss_cert_b64:
+            f = tempfile.NamedTemporaryFile(delete=False, suffix=".crt")
+            f.write(base64.b64decode(settings.toss_cert_b64)); f.close()
+            cert_path = f.name
+        if not key_path and settings.toss_key_b64:
+            f = tempfile.NamedTemporaryFile(delete=False, suffix=".key")
+            f.write(base64.b64decode(settings.toss_key_b64)); f.close()
+            key_path = f.name
+        self._cert = (cert_path, key_path)
         self._referrer = settings.toss_referrer or "DEFAULT"
         self._key = base64.b64decode(settings.toss_decrypt_key) if settings.toss_decrypt_key else None
 
@@ -86,7 +97,9 @@ class TossAuth:
 
 
 def get_auth():
-    """mTLS 인증서 + 복호화 키 있으면 TossAuth, 없으면 MockAuth."""
-    if settings.toss_cert_path and settings.toss_key_path and settings.toss_decrypt_key:
+    """mTLS 인증서(파일 or base64) + 복호화 키 있으면 TossAuth, 없으면 MockAuth."""
+    has_cert = (settings.toss_cert_path and settings.toss_key_path) or \
+               (settings.toss_cert_b64 and settings.toss_key_b64)
+    if has_cert and settings.toss_decrypt_key:
         return TossAuth()
     return MockAuth()

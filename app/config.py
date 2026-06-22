@@ -34,8 +34,10 @@ class Settings(BaseSettings):
 
     # 토스 로그인(앱인토스). 미설정 시 MockAuth 사용
     toss_client_id: str = ""
-    toss_cert_path: str = ""        # mTLS 클라이언트 인증서(.pem)
-    toss_key_path: str = ""         # mTLS 개인키(.pem)
+    toss_cert_path: str = ""        # mTLS 클라이언트 인증서 파일 경로(.pem) — 로컬용
+    toss_key_path: str = ""         # mTLS 개인키 파일 경로(.pem) — 로컬용
+    toss_cert_b64: str = ""         # mTLS 인증서 base64 내용 — Render 환경변수용
+    toss_key_b64: str = ""          # mTLS 개인키 base64 내용 — Render 환경변수용
     toss_decrypt_key: str = ""      # PII 복호화 키(base64, 콘솔 발급)
     toss_referrer: str = "DEFAULT"  # DEFAULT | SANDBOX
     toss_disconnect_secret: str = "ohn-disconnect-2026"  # 연결 끊기 콜백 Basic Auth 패스워드
