@@ -192,7 +192,7 @@
   <h3>지인 초대하기</h3>
   <p>이 링크로 들어온 친구는 생년월일만 입력하면 바로 이 그룹에 합류해요. (최대 6명)</p>
   <div class="linkbox">
-    <input id="invlink" readonly value="https://chemisaju.app/invite/ABCD-1234" />
+    <input id="invlink" readonly value="" />
     <button onclick="copyLink()">복사</button>
   </div>
   <button class="kakao" onclick="shareInvite()">카카오톡으로 초대하기</button>
@@ -482,6 +482,7 @@ async function copyShare(){
   try{ await navigator.clipboard.writeText(shareUrls().page); return true; }catch(e){ return false; }
 }
 async function share(){
+  if(!GROUP_ID){ toastMsg("그룹을 먼저 만들어야 공유할 수 있어요"); return; }
   if(await webShare()){ return; }
   if(await copyShare()){ toastMsg("공유 링크를 복사했어요"); return; }
   toastMsg("공유를 사용할 수 없어요 — 링크를 직접 복사해주세요");
@@ -490,8 +491,13 @@ async function share(){
 function closeSheets(){
   ["scrim","sheet","gsheet"].forEach(id=>document.getElementById(id).classList.remove("show"));
 }
-function openInvite(){ closeSheets(); document.getElementById("scrim").classList.add("show");
-  document.getElementById("sheet").classList.add("show"); }
+function openInvite(){
+  closeSheets();
+  const link = GROUP_ID ? `${API}/share/${encodeURIComponent(GROUP_ID)}` : "";
+  document.getElementById("invlink").value = link;
+  document.getElementById("scrim").classList.add("show");
+  document.getElementById("sheet").classList.add("show");
+}
 function closeInvite(){ closeSheets(); }
 function copyLink(){
   const inp=document.getElementById("invlink"); inp.select();
