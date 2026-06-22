@@ -11,7 +11,7 @@ services:
     envVars:
       # 프론트(GitHub Pages) 출처만 허용
       - key: OHN_CORS_ORIGINS
-        value: https://timeleeh.github.io
+        value: https://timeleeh.github.io,https://chemisaju.apps.tossmini.com,https://chemisaju.private-apps.tossmini.com
       # PoC: LLM 없이 동작(운세 생성 없이도 카드/공유 검증 가능)
       - key: OHN_PROVIDER
         value: mock
