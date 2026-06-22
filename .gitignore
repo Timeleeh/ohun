@@ -6,3 +6,7 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 .omc/
+*.key
+*.crt
+*.pem
+securityMail.html
