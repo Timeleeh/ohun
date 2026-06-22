@@ -138,7 +138,7 @@
   <div class="appbar">
     <span class="gname" id="gname">우리팀 단톡방</span>
     <button class="gswitch" onclick="openGroups()">그룹 전환 ▾</button>
-    <button class="me" onclick="toastMsg('내 정보 화면 (목업)')" aria-label="내 정보">🙂</button>
+    <button class="me" onclick="toastMsg('내 정보 수정은 그룹 탈퇴 후 재가입으로 가능해요')" aria-label="내 정보">🙂</button>
   </div>
   <div class="date" id="date" style="margin-top:14px"></div>
   <div class="theme">오늘의 기운 · <span class="el" id="dayEl">木</span></div>
@@ -195,11 +195,11 @@
     <input id="invlink" readonly value="https://chemisaju.app/invite/ABCD-1234" />
     <button onclick="copyLink()">복사</button>
   </div>
-  <button class="kakao" onclick="toastMsg('카카오톡 초대 공유 (목업)'); closeInvite()">카카오톡으로 초대하기</button>
+  <button class="kakao" onclick="shareInvite()">카카오톡으로 초대하기</button>
 </aside>
 
-<div class="toast" id="toast">공유 카드가 단톡방으로 전송돼요 (목업)</div>
-<footer>케미사주 · 인터랙티브 목업 · 샘플 데이터</footer>
+<div class="toast" id="toast"></div>
+<footer>케미사주</footer>
 
 <script>
 // ===== 설정: 실제 API 연결 (미설정 시 샘플 데이터로 동작) =====
@@ -500,9 +500,7 @@ function copyLink(){
 }
 
 // 그룹 목록 / 전환 / 생성 (FR-02)  — 항목: {id, name}
-let GROUPS=[{id:"우리팀 단톡방",name:"우리팀 단톡방"},
-           {id:"대학 동기방",name:"대학 동기방"},
-           {id:"가족방",name:"가족방"}];
+let GROUPS=[];
 function currentGroup(){ return document.getElementById("gname").textContent; }
 function renderGroups(){
   const cur=currentGroup();
@@ -554,21 +552,34 @@ async function createGroup(){
   setTimeout(openInvite,650);   // 만들면 바로 친구 초대 유도
 }
 
-// ===== 부팅: API 설정 있으면 실제 데이터, 없으면 샘플 =====
+// ===== 초대 공유 =====
+async function shareInvite(){
+  const link = document.getElementById("invlink").value;
+  if(navigator.share){
+    try{ await navigator.share({title:"케미사주 초대", text:"사주로 우리 그룹 케미 확인해봐요!", url:link}); }
+    catch(e){}
+  } else {
+    await navigator.clipboard.writeText(link).catch(()=>{});
+    toastMsg("초대 링크가 복사됐어요");
+  }
+  closeInvite();
+}
+
+// ===== 부팅: GROUP_ID 있으면 API에서 데이터, 없으면 그룹 만들기 화면 =====
 async function loadGroup(){
   try{
     const v = await apiGet(`/groups/${encodeURIComponent(GROUP_ID)}/view`);
     render(adapt(v));
-    document.querySelector("footer").textContent = "케미사주 · 실시간 API 연결됨";
+    document.querySelector("footer").textContent = "케미사주";
   }catch(e){
     console.warn(e);
-    toastMsg(String(e).includes("404") ? "아직 오늘 운세가 생성되지 않았어요" : "API 연결 실패 — 샘플 표시");
+    toastMsg(String(e).includes("404") ? "아직 오늘 운세가 생성되지 않았어요" : "데이터를 불러오지 못했어요. 잠시 후 다시 시도해주세요");
     render(SAMPLE);
   }
 }
 async function boot(){
   if(LIVE) await loadGroup();
-  else render(SAMPLE);
+  else goCreate();
 }
 boot();
 </script>
