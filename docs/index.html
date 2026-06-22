@@ -142,6 +142,9 @@
   </div>
   <div class="date" id="date" style="margin-top:14px"></div>
   <div class="theme">오늘의 기운 · <span class="el" id="dayEl">木</span></div>
+  <div id="samplebanner" hidden style="margin-top:8px;padding:6px 12px;background:#2a2e38;border-radius:8px;font-size:12px;color:#8d93a1;text-align:center">
+    예시 화면 — 그룹 멤버가 합류하면 실제 운세가 표시돼요
+  </div>
 </header>
 
 <div class="summary"><span class="tag">오늘의 그룹 한줄평</span><div id="groupComment"></div></div>
@@ -284,6 +287,7 @@ function render(data){
   document.getElementById("dayEl").textContent = DATA.dayElement;
   document.getElementById("groupComment").textContent = DATA.groupComment;
   if(DATA.groupName) document.getElementById("gname").textContent = DATA.groupName;
+  document.getElementById("samplebanner").hidden = (data !== SAMPLE);
   renderCards();
   renderDiagram();
   setReveal("동그라미나 인연선을 탭해보세요 ✨", "");
