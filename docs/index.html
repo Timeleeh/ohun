@@ -130,6 +130,27 @@
     font-size:15px; font-weight:800; cursor:pointer}
   .glist .gitem:last-child{border-bottom:none}
   .glist .gitem .mini{font-size:12px; color:var(--sub); font-weight:600; margin-left:auto}
+  /* 멤버 수동 입력 행 */
+  .memberrow{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+  .memberrow .fi{padding:12px 14px;font-size:14px}
+  .memberrow .del{width:36px;height:36px;border:none;background:rgba(255,122,138,.15);
+    color:#ff7a8a;border-radius:10px;font-size:18px;cursor:pointer;flex:none}
+  /* 예시 패널 */
+  #previewPanel{margin-top:16px;border-top:1px solid var(--line);padding-top:16px}
+  #previewBtn{width:100%;border:1px dashed var(--line);background:transparent;color:var(--sub);
+    border-radius:13px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;margin-top:14px}
+  .pcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;
+    margin-bottom:8px;font-size:13.5px;line-height:1.5;font-weight:600}
+  .pcard .pname{color:var(--acc);font-weight:800;margin-right:5px}
+  .pcard .pel{font-size:11px;color:var(--sub)}
+  /* 공유 상태 */
+  #shareStatus{text-align:center;font-size:11.5px;color:var(--sub);padding:5px 20px 0;
+    position:fixed;bottom:82px;left:50%;transform:translateX(-50%);
+    width:min(456px,calc(100% - 28px));pointer-events:none;z-index:19}
+  /* 내 정보 시트 */
+  .inforow{background:var(--surf2);border-radius:13px;padding:14px 16px;margin-bottom:10px}
+  .inforow .ilabel{font-size:11px;color:var(--sub);font-weight:700;margin-bottom:4px}
+  .inforow .ival{font-size:17px;font-weight:800}
 </style>
 </head>
 <body>
@@ -138,7 +159,7 @@
   <div class="appbar">
     <span class="gname" id="gname">우리팀 단톡방</span>
     <button class="gswitch" onclick="openGroups()">그룹 전환 ▾</button>
-    <button class="me" onclick="toastMsg('내 정보 수정은 그룹 탈퇴 후 재가입으로 가능해요')" aria-label="내 정보">🙂</button>
+    <button class="me" onclick="openMe()" aria-label="내 정보">🙂</button>
   </div>
   <div class="date" id="date" style="margin-top:14px"></div>
   <div class="theme">오늘의 기운 · <span class="el" id="dayEl">木</span></div>
@@ -163,6 +184,7 @@
   <button class="btn invite" onclick="openInvite()">🔗 지인 초대</button>
   <button class="btn primary" onclick="share()">💬 카톡 공유</button>
 </div>
+<div id="shareStatus"></div>
 </div><!-- /#home -->
 
 <!-- 그룹 만들기 화면 (FR-02) -->
@@ -177,7 +199,15 @@
     <p class="fhint">지정한 시각에 <b>하루 한 번</b> 그룹 운세가 생성돼요. 실시간 생성이 아니라
       자원을 아끼고, 단톡방에 아침 인사처럼 딱 맞춰 공유할 수 있어요.</p>
     <div class="cap">👥 한 그룹은 최대 6명까지 함께할 수 있어요</div>
+    <label class="fl">멤버 추가 <span style="font-size:11px;color:var(--sub);text-transform:none;font-weight:600">(선택, 최대 5명)</span></label>
+    <div id="memberList"></div>
+    <button type="button" class="btn" style="background:var(--surf2);color:var(--ink);border:1px solid var(--line);width:100%;margin-top:4px" onclick="addMember()">＋ 멤버 추가</button>
     <button class="btn primary full" onclick="createGroup()">그룹 만들고 친구 초대하기</button>
+    <button type="button" id="previewBtn" onclick="togglePreview()">예시 화면 미리보기 ▾</button>
+    <div id="previewPanel" hidden>
+      <p style="font-size:11.5px;color:var(--sub);text-align:center;margin:0 0 12px">실제 화면 예시입니다 — 멤버가 합류하면 아래처럼 표시돼요</p>
+      <div id="previewCards"></div>
+    </div>
   </div>
 </section>
 
@@ -201,6 +231,13 @@
   <button class="kakao" onclick="shareInvite()">카카오톡으로 초대하기</button>
 </aside>
 
+<aside class="sheet" id="mesheet" role="dialog" aria-label="내 정보">
+  <div class="grip"></div>
+  <h3>내 정보</h3>
+  <div id="meinfo"></div>
+  <p style="font-size:11.5px;color:var(--sub);margin-top:4px;line-height:1.6">토스 로그인으로 연동된 정보예요.<br>변경은 토스 앱 개인정보에서 가능해요.</p>
+</aside>
+
 <div class="toast" id="toast"></div>
 <footer>케미사주</footer>
 
@@ -214,6 +251,8 @@ const cfg = k => QS.get(k) || localStorage.getItem("chemisaju_" + k) || "";
 const API = (cfg("api") || "https://chemisaju-api.onrender.com").replace(/\/+$/, "");
 let GROUP_ID = cfg("group");
 let USER_ID  = cfg("user");
+let USER_INFO = null;   // {name, birth_date} — Toss 로그인 후 채워짐
+let MANUAL_MEMBERS = []; // 수동 입력된 멤버 [{name, birth}]
 let KAKAO_KEY = cfg("kakao");   // 카카오 JS 키(?kakao= / localStorage / API의 /share/config)
 const LIVE = !!(API && GROUP_ID);
 
@@ -292,6 +331,7 @@ function render(data){
   renderCards();
   renderDiagram();
   setReveal("동그라미나 인연선을 탭해보세요 ✨", "");
+  updateShareStatus();
 }
 
 // 멤버 카드
@@ -500,7 +540,7 @@ async function share(){
 }
 
 function closeSheets(){
-  ["scrim","sheet","gsheet"].forEach(id=>document.getElementById(id).classList.remove("show"));
+  ["scrim","sheet","gsheet","mesheet"].forEach(id=>document.getElementById(id).classList.remove("show"));
 }
 async function openInvite(){
   closeSheets();
@@ -614,6 +654,7 @@ async function boot(){
       const { authorizationCode, referrer } = await appLogin();
       const res = await apiPost("/auth/login", { authorization_code: authorizationCode, referrer });
       USER_ID = res.user_id;
+      USER_INFO = { name: res.name, birth_date: res.birth_date };
       localStorage.setItem("chemisaju_user", USER_ID);
     }catch(e){
       console.info("토스 로그인 skip:", e?.code || e?.message);
@@ -623,10 +664,105 @@ async function boot(){
   else goCreate();
 }
 
+// ===== 내 정보 시트 =====
+function openMe(){
+  closeSheets();
+  const div = document.getElementById("meinfo");
+  if(USER_INFO && USER_INFO.name){
+    const el = calcElement(USER_INFO.birth_date);
+    div.innerHTML = `
+      <div class="inforow"><div class="ilabel">이름</div><div class="ival">${USER_INFO.name}</div></div>
+      <div class="inforow"><div class="ilabel">생년월일</div><div class="ival">${USER_INFO.birth_date||'—'}</div></div>
+      <div class="inforow"><div class="ilabel">오행 타입</div><div class="ival" style="color:var(--acc)">${el ? EL_HANJA[el]+'('+el+')' : '—'}</div></div>`;
+  } else {
+    div.innerHTML = `<p style="color:var(--sub);font-size:14px;line-height:1.65;margin:4px 0 8px">토스 앱에서 실행하면<br>이름·생년월일이 자동으로 표시돼요.<br><span style="font-size:12px;opacity:.7">현재는 로그인 정보가 없어요.</span></p>`;
+  }
+  document.getElementById("scrim").classList.add("show");
+  document.getElementById("mesheet").classList.add("show");
+}
+
+// ===== 오행 계산 (출생연도 간이) =====
+function calcElement(birth_date){
+  const y = parseInt((birth_date||'').split('-')[0]||'0') % 10;
+  return {4:'목',5:'목',6:'화',7:'화',8:'토',9:'토',0:'금',1:'금',2:'수',3:'수'}[y] || '수';
+}
+
+// ===== 멤버 수동 입력 =====
+function addMember(){
+  if(MANUAL_MEMBERS.length >= 5){ toastMsg("최대 5명까지 추가할 수 있어요"); return; }
+  const idx = MANUAL_MEMBERS.length;
+  MANUAL_MEMBERS.push({name:'', birth:''});
+  const list = document.getElementById("memberList");
+  const row = document.createElement("div");
+  row.className = "memberrow"; row.dataset.idx = idx;
+  row.innerHTML = `<input class="fi" placeholder="이름" style="flex:1;min-width:0" oninput="MANUAL_MEMBERS[${idx}].name=this.value">
+    <input class="fi" type="date" style="width:152px;flex:none" oninput="MANUAL_MEMBERS[${idx}].birth=this.value">
+    <button class="del" onclick="removeMember(this)" aria-label="삭제">×</button>`;
+  list.appendChild(row);
+}
+function removeMember(btn){
+  const row = btn.closest(".memberrow");
+  const idx = +row.dataset.idx;
+  MANUAL_MEMBERS.splice(idx, 1);
+  row.remove();
+  // 인덱스 재부여
+  document.querySelectorAll("#memberList .memberrow").forEach((r, i)=>{
+    r.dataset.idx = i;
+    r.querySelectorAll("input").forEach(inp=>{ inp.setAttribute("oninput", inp.getAttribute("oninput").replace(/\d+/,i)); });
+  });
+  MANUAL_MEMBERS = MANUAL_MEMBERS.slice(); // trigger reassign
+}
+
+// ===== 예시 화면 접기/펼치기 =====
+function togglePreview(){
+  const panel = document.getElementById("previewPanel");
+  const btn = document.getElementById("previewBtn");
+  if(panel.hidden){
+    renderPreview();
+    panel.hidden = false;
+    btn.textContent = "예시 화면 접기 ▴";
+  } else {
+    panel.hidden = true;
+    btn.textContent = "예시 화면 미리보기 ▾";
+  }
+}
+function renderPreview(){
+  const members = MANUAL_MEMBERS.filter(m=>m.name.trim()).length
+    ? MANUAL_MEMBERS.filter(m=>m.name.trim()).map((m,i)=>{
+        const el = calcElement(m.birth);
+        return {name: m.name.trim(), el, base: `${EL_HANJA[el]} 기운`, score: 3+((i*7)%3)};
+      })
+    : SAMPLE.members.slice(0,4);
+  const container = document.getElementById("previewCards");
+  container.innerHTML = members.map(m=>{
+    const stars = "★".repeat(m.score)+"☆".repeat(5-m.score);
+    const col = PALETTE[m.el] || "#c6ff3d";
+    return `<div class="pcard">
+      <span class="dot" style="background:${col};width:28px;height:28px;font-size:12px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;vertical-align:middle;margin-right:8px;color:#0d0e12">${m.name[0]}</span>
+      <span class="pname">${m.name}</span><span class="pel">${EL_HANJA[m.el]||''} · ${stars}</span>
+      ${m.line ? `<div style="margin-top:6px;font-size:13px;color:var(--sub)">${m.line}</div>` : ''}
+    </div>`;
+  }).join("");
+}
+
+// ===== 공유 버튼 상태 안내 =====
+function updateShareStatus(){
+  const el = document.getElementById("shareStatus");
+  if(!el) return;
+  if(!GROUP_ID){
+    el.textContent = "";
+  } else if(DATA === SAMPLE){
+    el.textContent = "⏰ 운세는 설정한 시간에 자동 생성 — 생성 후 공유 가능해요";
+  } else {
+    el.textContent = "";
+  }
+}
+
 // onclick 핸들러용 전역 노출 (module scope → window)
 Object.assign(window, {
   openGroups, toastMsg, openInvite, share, shareInvite, copyLink,
-  goCreate, showHome, createGroup, closeInvite, closeSheets, pickGroup
+  goCreate, showHome, createGroup, closeInvite, closeSheets, pickGroup,
+  openMe, addMember, removeMember, togglePreview
 });
 boot();
 </script>
